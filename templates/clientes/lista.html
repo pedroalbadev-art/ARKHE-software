@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>ARKHE - Clientes</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+</head>
+<body>
+
+  <div class="topbar">ARKHE &middot; Modulo de Clientes</div>
+
+  <div class="content">
+
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="accion-bar">
+      <button class="btn-nuevo" onclick="document.getElementById('modalNuevo').classList.add('abierto')">
+        + Nuevo Cliente
+      </button>
+      <p style="margin:0; color:#6B7280; font-size:13px;">
+        Mostrando {{ clientes|length }} cliente(s)
+      </p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>Documento</th>
+          <th>Correo Electronico</th>
+          <th>Telefono</th>
+          <th style="text-align:center;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cliente in clientes %}
+        <tr>
+          <td>{{ cliente.id_cliente }}</td>
+          <td>{{ cliente.nombre }}</td>
+          <td>{{ cliente.apellido }}</td>
+          <td>{{ cliente.documento }}</td>
+          <td>{{ cliente.correo }}</td>
+          <td>{{ cliente.telefono }}</td>
+          <td style="text-align:center;">
+            <a class="btn-accion btn-editar"
+               href="{{ url_for('clientes.editar_cliente', id_cliente=cliente.id_cliente) }}">Editar</a>
+            <form action="{{ url_for('clientes.eliminar_cliente', id_cliente=cliente.id_cliente) }}"
+                  method="post" style="display:inline;"
+                  onsubmit="return confirm('¿Eliminar a {{ cliente.nombre_completo }}?');">
+              <button type="submit" class="btn-accion btn-eliminar">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align:center; color:#6B7280; padding:24px;">
+            Aun no hay clientes registrados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Modal "Nuevo Cliente" -->
+  <div class="modal-overlay" id="modalNuevo">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 style="margin:0; font-size:18px; font-weight:600;">Nuevo Cliente</h2>
+        <button onclick="document.getElementById('modalNuevo').classList.remove('abierto')"
+                style="background:transparent; border:none; font-size:22px; color:#6B7280; cursor:pointer;">
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        <form method="post" action="{{ url_for('clientes.crear_cliente') }}">
+          <div class="campo">
+            <label>Nombre</label>
+            <input type="text" name="nombre" placeholder="Ej: Maria" required>
+          </div>
+          <div class="campo">
+            <label>Apellido</label>
+            <input type="text" name="apellido" placeholder="Ej: Garcia Lopez" required>
+          </div>
+          <div class="campo">
+            <label>Numero de Documento</label>
+            <input type="text" name="documento" placeholder="Ej: 1045234567" required>
+          </div>
+          <div class="campo">
+            <label>Correo Electronico</label>
+            <input type="email" name="correo" placeholder="maria.garcia@email.com" required>
+          </div>
+          <div class="campo">
+            <label>Telefono</label>
+            <input type="tel" name="telefono" placeholder="3151234567" required>
+          </div>
+          <button type="submit" class="btn-nuevo" style="width:100%;">Guardar Cliente</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

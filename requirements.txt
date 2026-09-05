@@ -1,1 +1,14 @@
+# Dependencias del proyecto ARKHE.
+#
+# Flask: framework web.
+# Flask-SQLAlchemy: ORM que mapea las tablas de MySQL a clases Python
+#   (adoptado en la evidencia GA7-220501096-AA3-EV01, módulo de
+#   Clientes), en vez de escribir SQL a mano.
+# PyMySQL: driver que permite a SQLAlchemy hablar el protocolo de
+#   MySQL desde Python puro.
+# python-dotenv: carga las credenciales del archivo .env (ya usado
+#   desde la configuración inicial del entorno).
 Flask
+Flask-SQLAlchemy
+PyMySQL
+python-dotenv

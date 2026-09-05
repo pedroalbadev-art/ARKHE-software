@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>ARKHE - Editar Cliente</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+</head>
+<body>
+
+  <div class="topbar">ARKHE &middot; Editar Cliente</div>
+
+  <div class="content">
+    <div class="tarjeta-formulario">
+      <h2 style="margin-top:0; font-size:18px;">Editar cliente: {{ cliente.nombre_completo }}</h2>
+
+      <form method="post" action="{{ url_for('clientes.actualizar_cliente', id_cliente=cliente.id_cliente) }}">
+        <div class="campo">
+          <label>Nombre</label>
+          <input type="text" name="nombre" value="{{ cliente.nombre }}" required>
+        </div>
+        <div class="campo">
+          <label>Apellido</label>
+          <input type="text" name="apellido" value="{{ cliente.apellido }}" required>
+        </div>
+        <div class="campo">
+          <label>Numero de Documento</label>
+          <input type="text" name="documento" value="{{ cliente.documento }}" required>
+        </div>
+        <div class="campo">
+          <label>Correo Electronico</label>
+          <input type="email" name="correo" value="{{ cliente.correo }}" required>
+        </div>
+        <div class="campo">
+          <label>Telefono</label>
+          <input type="tel" name="telefono" value="{{ cliente.telefono }}" required>
+        </div>
+
+        <button type="submit" class="btn-nuevo" style="width:100%; margin-bottom:12px;">
+          Guardar Cambios
+        </button>
+        <a class="enlace-cancelar" href="{{ url_for('clientes.listar_clientes') }}">Cancelar y volver al listado</a>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>

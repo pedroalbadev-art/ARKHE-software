@@ -1,0 +1,194 @@
+/*
+static/css/clientes.css
+------------------------
+Estilos del modulo de Clientes, extraidos y adaptados del mockup
+aprobado en la evidencia GA6-EV02 (arkhe_clientes_module.html, carpeta
+ADSO/ADSO/ARKHE).
+
+Se coloca en un archivo .css separado (en vez de repetir "style=" en
+cada etiqueta como hacia el mockup original) para no duplicar las
+mismas reglas en lista.html y formulario.html: es el principio de
+"no te repitas" (DRY) aplicado a CSS.
+
+Paleta de marca ARKHE (dorado/bronce, migracion 2026-08-08):
+  #3A2F20  bronce muy oscuro   (fondos solidos: barra superior)
+  #8A6F52  dorado medio        (color primario: botones, acentos)
+  #F3ECDD  tint claro          (fondos de badges/acciones suaves)
+*/
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #F9FAFB;
+    color: #1F2937;
+}
+
+.topbar {
+    background: #3A2F20;
+    color: white;
+    padding: 16px 32px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.content {
+    padding: 32px;
+}
+
+.accion-bar {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.btn-nuevo {
+    padding: 10px 18px;
+    background: #8A6F52;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-nuevo:hover {
+    box-shadow: 0 4px 12px rgba(138, 111, 82, 0.35);
+}
+
+input[type=text], input[type=email], input[type=tel] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+input:focus {
+    outline: none;
+    border-color: #8A6F52;
+    box-shadow: 0 0 0 3px rgba(138, 111, 82, 0.12);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+th {
+    text-align: left;
+    padding: 14px 20px;
+    color: #6B7280;
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    background: #F9FAFB;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+td {
+    padding: 14px 20px;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.btn-accion {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-right: 4px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-editar { background: #FEF3C7; color: #92400E; }
+.btn-eliminar { background: #FEE2E2; color: #991B1B; }
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.abierto {
+    display: flex;
+}
+
+.modal-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    padding: 24px;
+    border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.campo {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flash {
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.flash-exito { background: #D1FAE5; color: #065F46; }
+.flash-info { background: #FEF3C7; color: #92400E; }
+
+.tarjeta-formulario {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+}
+
+.enlace-cancelar {
+    color: #6B7280;
+    font-size: 13px;
+    text-decoration: none;
+}
