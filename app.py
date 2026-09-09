@@ -3,13 +3,11 @@ app.py
 ------
 Punto de entrada de la aplicacion ARKHE (ERP inmobiliario).
 
-Reemplaza la version de prueba inicial (que solo confirmaba que el
-entorno -- venv + Flask -- quedo bien configurado) por la aplicacion
-real: conecta Flask-SQLAlchemy con la base de datos ARKHE_V1 y
-registra el primer modulo construido, Clientes (evidencia
-GA7-220501096-AA3-EV01). Los proximos modulos (Usuarios, Proyectos,
-Apartamentos, Ventas, Pagos) se iran agregando aqui de la misma forma,
-como nuevos blueprints en routes/.
+Registra los modulos construidos hasta ahora como blueprints de
+Flask: Clientes (evidencia GA7-220501096-AA3-EV01) y Usuarios
+(evidencia GA7-220501096-AA3-EV02). Los proximos modulos (Proyectos,
+Apartamentos, Ventas, Pagos) se iran agregando aqui de la misma
+forma.
 
 Para ejecutar el proyecto (con el entorno virtual activo y las
 dependencias de requirements.txt instaladas):
@@ -21,6 +19,7 @@ from flask import Flask, redirect, url_for
 from config import Config
 from models import db
 from routes.clientes import clientes_bp
+from routes.usuarios import usuarios_bp
 
 
 def create_app():
@@ -38,15 +37,15 @@ def create_app():
     # Conecta la extension Flask-SQLAlchemy con esta instancia de la app.
     db.init_app(app)
 
-    # Registra el blueprint (grupo de rutas) del modulo de Clientes.
-    # url_prefix hace que todas sus rutas empiecen por /clientes
-    # (ej: /clientes/, /clientes/nuevo, /clientes/3/editar).
+    # Registra los blueprints (grupos de rutas) de cada modulo.
+    # url_prefix hace que todas las rutas de un modulo empiecen por su
+    # propio prefijo (ej: /clientes/, /usuarios/nuevo).
     app.register_blueprint(clientes_bp, url_prefix="/clientes")
+    app.register_blueprint(usuarios_bp, url_prefix="/usuarios")
 
     @app.route("/")
     def inicio():
-        """Redirige la raiz del sitio al modulo de clientes, que por
-        ahora es el unico modulo construido."""
+        """Redirige la raiz del sitio al modulo de clientes."""
         return redirect(url_for("clientes.listar_clientes"))
 
     return app

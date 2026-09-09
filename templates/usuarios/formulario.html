@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>ARKHE - Editar Usuario</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/usuarios.css') }}">
+</head>
+<body>
+
+  <div class="topbar">ARKHE &middot; Editar Usuario</div>
+
+  <div class="content">
+
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="tarjeta-formulario">
+      <h2 style="margin-top:0; font-size:18px;">Editar usuario: {{ usuario.nombre_completo }}</h2>
+
+      <form method="post" action="{{ url_for('usuarios.actualizar_usuario', id_usuario=usuario.id_usuario) }}">
+        <div class="campo">
+          <label>Nombre</label>
+          <input type="text" name="nombre" value="{{ usuario.nombre }}"
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
+        </div>
+        <div class="campo">
+          <label>Apellido</label>
+          <input type="text" name="apellido" value="{{ usuario.apellido }}"
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
+        </div>
+        <div class="campo">
+          <label>Correo Electronico</label>
+          <input type="email" name="correo" value="{{ usuario.correo }}" required>
+        </div>
+        <div class="campo">
+          <label>Nueva Contraseña (dejar en blanco para no cambiarla)</label>
+          <input type="password" name="contrasena" placeholder="Minimo 8 caracteres" minlength="8">
+        </div>
+        <div class="campo">
+          <label>Rol</label>
+          <select name="rol" required>
+            {% for rol in roles %}
+            <option value="{{ rol }}" {% if usuario.rol == rol %}selected{% endif %}>{{ rol }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label>Estado</label>
+          <select name="estado" required>
+            <option value="activo" {% if usuario.estado == "activo" %}selected{% endif %}>Activo</option>
+            <option value="inactivo" {% if usuario.estado == "inactivo" %}selected{% endif %}>Inactivo</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-nuevo" style="width:100%; margin-bottom:12px;">
+          Guardar Cambios
+        </button>
+        <a class="enlace-cancelar" href="{{ url_for('usuarios.listar_usuarios') }}">Cancelar y volver al listado</a>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>
