@@ -2,8 +2,18 @@
 routes/clientes.py
 -------------------
 Rutas (endpoints) del modulo de Clientes: listar, crear, editar y
-eliminar. Es un Blueprint de Flask, es decir, un grupo de rutas
-relacionadas que se registra en app.py bajo el prefijo /clientes.
+eliminar. Blueprint de Flask, registrado en app.py bajo el prefijo
+/clientes.
+
+Actualizado en la evidencia GA7-220501096-AA3-EV02 (2026-09-09) para
+agregar validacion real de contenido, usando utils/validaciones.py
+(las mismas funciones que usa routes/usuarios.py). Hasta esta
+evidencia, este archivo solo dependia de "required" en el HTML y de
+las restricciones NOT NULL/UNIQUE de la base de datos: eso evitaba
+campos vacios, pero no un documento con letras o un correo sin
+formato valido. El error de documento/correo duplicado (ya exigido
+por la base de datos con UNIQUE) tambien se captura aqui para mostrar
+un mensaje claro en vez de un error 500 sin control.
 
 Estandar de codificacion seguido en este archivo:
 - Nombres de funcion en snake_case describiendo la accion (verbo +
@@ -12,23 +22,48 @@ Estandar de codificacion seguido en este archivo:
 - Las eliminaciones y modificaciones se hacen por POST, nunca por GET,
   para que un simple enlace (o un rastreador de buscador) no pueda
   borrar o cambiar datos por accidente.
-- Los campos nombre, apellido, documento, correo y telefono se leen
-  con request.form[...] (no .get) porque la tabla real los exige
-  NOT NULL: si llegaran vacios, es mejor que Flask lo rechace de una
-  vez con un error claro, en vez de intentar guardar un dato invalido.
 """
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
+from sqlalchemy.exc import IntegrityError
 
 from models import db
 from models.cliente import Cliente
-
-# template_folder apunta a la carpeta propia de este modulo dentro de
-# templates/ (templates/clientes/), separada de la de otros modulos
-# futuros (templates/proyectos/, templates/ventas/, etc.).
-clientes_bp = Blueprint(
-    "clientes", __name__, template_folder="../templates/clientes"
+from utils.validaciones import (
+    es_correo_valido,
+    es_documento_valido,
+    es_telefono_valido,
+    es_texto_valido,
 )
+
+# No se personaliza template_folder: se usa la carpeta de plantillas
+# por defecto de la app (templates/), que ya tiene una subcarpeta por
+# modulo (templates/clientes/, templates/usuarios/, etc.). Por eso
+# cada render_template() de este archivo pide la plantilla con el
+# prefijo "clientes/" (ver nota mas abajo, corregida en GA7-AA3-EV02:
+# usar un template_folder propio por blueprint mezclaba los nombres de
+# plantilla entre modulos y causaba que /usuarios/ mostrara por error
+# la plantilla de Clientes).
+clientes_bp = Blueprint("clientes", __name__)
+
+
+def _validar_datos_cliente(form):
+    """Revisa los datos de un formulario de cliente y devuelve una
+    lista de mensajes de error (vacia si todo es valido)."""
+    errores = []
+
+    if not es_texto_valido(form.get("nombre", "")):
+        errores.append("El nombre solo puede contener letras y espacios.")
+    if not es_texto_valido(form.get("apellido", "")):
+        errores.append("El apellido solo puede contener letras y espacios.")
+    if not es_documento_valido(form.get("documento", "")):
+        errores.append("El documento debe contener solo numeros (6 a 15 digitos).")
+    if not es_correo_valido(form.get("correo", "")):
+        errores.append("El correo electronico no tiene un formato valido.")
+    if not es_telefono_valido(form.get("telefono", "")):
+        errores.append("El telefono debe contener solo numeros (7 a 15 digitos).")
+
+    return errores
 
 
 @clientes_bp.route("/")
@@ -36,23 +71,37 @@ def listar_clientes():
     """Muestra la tabla con todos los clientes registrados, ordenados
     alfabeticamente por nombre."""
     clientes = Cliente.query.order_by(Cliente.nombre).all()
-    return render_template("lista.html", clientes=clientes)
+    return render_template("clientes/lista.html", clientes=clientes)
 
 
 @clientes_bp.route("/nuevo", methods=["POST"])
 def crear_cliente():
-    """Recibe los datos del formulario modal 'Nuevo Cliente' (definido
-    en lista.html) y crea el registro correspondiente en la base de
-    datos."""
+    """Valida y crea un nuevo cliente a partir del formulario modal
+    'Nuevo Cliente' (definido en lista.html). Si hay errores de
+    validacion, no se toca la base de datos y se muestran los
+    mensajes con flash()."""
+    errores = _validar_datos_cliente(request.form)
+    if errores:
+        for error in errores:
+            flash(error, "error")
+        return redirect(url_for("clientes.listar_clientes"))
+
     nuevo_cliente = Cliente(
-        nombre=request.form["nombre"],
-        apellido=request.form["apellido"],
-        documento=request.form["documento"],
-        correo=request.form["correo"],
-        telefono=request.form["telefono"],
+        nombre=request.form["nombre"].strip(),
+        apellido=request.form["apellido"].strip(),
+        documento=request.form["documento"].strip(),
+        correo=request.form["correo"].strip(),
+        telefono=request.form["telefono"].strip(),
     )
-    db.session.add(nuevo_cliente)
-    db.session.commit()
+
+    try:
+        db.session.add(nuevo_cliente)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Ya existe un cliente registrado con ese documento o correo.", "error")
+        return redirect(url_for("clientes.listar_clientes"))
+
     flash(f"Cliente '{nuevo_cliente.nombre_completo}' creado correctamente.", "exito")
     return redirect(url_for("clientes.listar_clientes"))
 
@@ -67,19 +116,34 @@ def editar_cliente(id_cliente):
     programa falle con una excepcion sin control.
     """
     cliente = Cliente.query.get_or_404(id_cliente)
-    return render_template("formulario.html", cliente=cliente)
+    return render_template("clientes/formulario.html", cliente=cliente)
 
 
 @clientes_bp.route("/<int:id_cliente>/editar", methods=["POST"])
 def actualizar_cliente(id_cliente):
-    """Guarda los cambios enviados desde el formulario de edicion."""
+    """Valida y guarda los cambios enviados desde el formulario de
+    edicion."""
     cliente = Cliente.query.get_or_404(id_cliente)
-    cliente.nombre = request.form["nombre"]
-    cliente.apellido = request.form["apellido"]
-    cliente.documento = request.form["documento"]
-    cliente.correo = request.form["correo"]
-    cliente.telefono = request.form["telefono"]
-    db.session.commit()
+
+    errores = _validar_datos_cliente(request.form)
+    if errores:
+        for error in errores:
+            flash(error, "error")
+        return redirect(url_for("clientes.editar_cliente", id_cliente=id_cliente))
+
+    cliente.nombre = request.form["nombre"].strip()
+    cliente.apellido = request.form["apellido"].strip()
+    cliente.documento = request.form["documento"].strip()
+    cliente.correo = request.form["correo"].strip()
+    cliente.telefono = request.form["telefono"].strip()
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Ya existe un cliente registrado con ese documento o correo.", "error")
+        return redirect(url_for("clientes.editar_cliente", id_cliente=id_cliente))
+
     flash(f"Cliente '{cliente.nombre_completo}' actualizado.", "exito")
     return redirect(url_for("clientes.listar_clientes"))
 

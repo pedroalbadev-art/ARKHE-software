@@ -14,6 +14,11 @@ Paleta de marca ARKHE (dorado/bronce, migracion 2026-08-08):
   #3A2F20  bronce muy oscuro   (fondos solidos: barra superior)
   #8A6F52  dorado medio        (color primario: botones, acentos)
   #F3ECDD  tint claro          (fondos de badges/acciones suaves)
+
+Actualizado en GA7-220501096-AA3-EV02 (2026-09-09): se agrega
+.flash-error, ya que routes/clientes.py ahora tambien reporta errores
+de validacion con flash(..., "error") (antes solo existian los
+mensajes de exito/info).
 */
 
 body {
@@ -178,6 +183,7 @@ label {
 
 .flash-exito { background: #D1FAE5; color: #065F46; }
 .flash-info { background: #FEF3C7; color: #92400E; }
+.flash-error { background: #FEE2E2; color: #991B1B; }
 
 .tarjeta-formulario {
     background: white;

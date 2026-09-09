@@ -82,15 +82,18 @@
         <form method="post" action="{{ url_for('clientes.crear_cliente') }}">
           <div class="campo">
             <label>Nombre</label>
-            <input type="text" name="nombre" placeholder="Ej: Maria" required>
+            <input type="text" name="nombre" placeholder="Ej: Maria"
+                   pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
           </div>
           <div class="campo">
             <label>Apellido</label>
-            <input type="text" name="apellido" placeholder="Ej: Garcia Lopez" required>
+            <input type="text" name="apellido" placeholder="Ej: Garcia Lopez"
+                   pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
           </div>
           <div class="campo">
             <label>Numero de Documento</label>
-            <input type="text" name="documento" placeholder="Ej: 1045234567" required>
+            <input type="text" name="documento" placeholder="Ej: 1045234567"
+                   pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)" required>
           </div>
           <div class="campo">
             <label>Correo Electronico</label>
@@ -98,7 +101,8 @@
           </div>
           <div class="campo">
             <label>Telefono</label>
-            <input type="tel" name="telefono" placeholder="3151234567" required>
+            <input type="tel" name="telefono" placeholder="3151234567"
+                   pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)" required>
           </div>
           <button type="submit" class="btn-nuevo" style="width:100%;">Guardar Cliente</button>
         </form>

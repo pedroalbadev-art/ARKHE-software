@@ -10,21 +10,31 @@
   <div class="topbar">ARKHE &middot; Editar Cliente</div>
 
   <div class="content">
+
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+      {% for categoria, mensaje in mensajes %}
+        <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
+      {% endfor %}
+    {% endwith %}
+
     <div class="tarjeta-formulario">
       <h2 style="margin-top:0; font-size:18px;">Editar cliente: {{ cliente.nombre_completo }}</h2>
 
       <form method="post" action="{{ url_for('clientes.actualizar_cliente', id_cliente=cliente.id_cliente) }}">
         <div class="campo">
           <label>Nombre</label>
-          <input type="text" name="nombre" value="{{ cliente.nombre }}" required>
+          <input type="text" name="nombre" value="{{ cliente.nombre }}"
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
         </div>
         <div class="campo">
           <label>Apellido</label>
-          <input type="text" name="apellido" value="{{ cliente.apellido }}" required>
+          <input type="text" name="apellido" value="{{ cliente.apellido }}"
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
         </div>
         <div class="campo">
           <label>Numero de Documento</label>
-          <input type="text" name="documento" value="{{ cliente.documento }}" required>
+          <input type="text" name="documento" value="{{ cliente.documento }}"
+                 pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)" required>
         </div>
         <div class="campo">
           <label>Correo Electronico</label>
@@ -32,7 +42,8 @@
         </div>
         <div class="campo">
           <label>Telefono</label>
-          <input type="tel" name="telefono" value="{{ cliente.telefono }}" required>
+          <input type="tel" name="telefono" value="{{ cliente.telefono }}"
+                 pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)" required>
         </div>
 
         <button type="submit" class="btn-nuevo" style="width:100%; margin-bottom:12px;">
