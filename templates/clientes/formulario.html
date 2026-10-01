@@ -1,58 +1,40 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>ARKHE - Editar Cliente</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-  <div class="topbar">ARKHE &middot; Editar Cliente</div>
+{% block title %}Editar Cliente - ARKHE{% endblock %}
+{% block titulo_pagina %}Editar Cliente{% endblock %}
 
-  <div class="content">
-
-    {% with mensajes = get_flashed_messages(with_categories=true) %}
-      {% for categoria, mensaje in mensajes %}
-        <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
-      {% endfor %}
-    {% endwith %}
-
-    <div class="tarjeta-formulario">
-      <h2 style="margin-top:0; font-size:18px;">Editar cliente: {{ cliente.nombre_completo }}</h2>
-
-      <form method="post" action="{{ url_for('clientes.actualizar_cliente', id_cliente=cliente.id_cliente) }}">
-        <div class="campo">
-          <label>Nombre</label>
-          <input type="text" name="nombre" value="{{ cliente.nombre }}"
-                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
-        </div>
-        <div class="campo">
-          <label>Apellido</label>
-          <input type="text" name="apellido" value="{{ cliente.apellido }}"
-                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
-        </div>
-        <div class="campo">
-          <label>Numero de Documento</label>
-          <input type="text" name="documento" value="{{ cliente.documento }}"
-                 pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)" required>
-        </div>
-        <div class="campo">
-          <label>Correo Electronico</label>
-          <input type="email" name="correo" value="{{ cliente.correo }}" required>
-        </div>
-        <div class="campo">
-          <label>Telefono</label>
-          <input type="tel" name="telefono" value="{{ cliente.telefono }}"
-                 pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)" required>
-        </div>
-
-        <button type="submit" class="btn-nuevo" style="width:100%; margin-bottom:12px;">
-          Guardar Cambios
-        </button>
-        <a class="enlace-cancelar" href="{{ url_for('clientes.listar_clientes') }}">Cancelar y volver al listado</a>
-      </form>
-    </div>
+{% block content %}
+  <div class="tarjeta form-card">
+    <h3>{{ cliente.nombre_completo }}</h3>
+    <form method="post" action="{{ url_for('clientes.actualizar_cliente', id_cliente=cliente.id_cliente) }}" class="form-grid">
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" name="nombre" value="{{ cliente.nombre }}" required
+               pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
+      </div>
+      <div class="form-group">
+        <label>Apellido</label>
+        <input type="text" name="apellido" value="{{ cliente.apellido }}" required
+               pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
+      </div>
+      <div class="form-group">
+        <label>Numero de documento</label>
+        <input type="text" name="documento" value="{{ cliente.documento }}" required
+               pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)">
+      </div>
+      <div class="form-group">
+        <label>Telefono</label>
+        <input type="tel" name="telefono" value="{{ cliente.telefono }}" required
+               pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)">
+      </div>
+      <div class="form-group full">
+        <label>Correo electronico</label>
+        <input type="email" name="correo" value="{{ cliente.correo }}" required>
+      </div>
+      <div class="form-actions">
+        <a class="btn btn-secondary" href="{{ url_for('clientes.listar_clientes') }}">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </form>
   </div>
-
-</body>
-</html>
+{% endblock %}

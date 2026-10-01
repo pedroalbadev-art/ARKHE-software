@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Registrar Pago' if accion == 'crear' else 'Editar Pago' }} - ARKHE{% endblock %}
+
+{% block titulo_pagina %}{{ 'Registrar Pago' if accion == 'crear' else 'Editar Pago #' ~ pago.id_pago }}{% endblock %}
+
+{% block content %}
+  <div class="tarjeta form-card">
+    <p class="nota" style="margin:0 0 18px;">El monto no puede superar el saldo pendiente de la venta.</p>
+    {% if not ventas %}
+      <div class="vacio">
+        <p>No hay ventas con saldo pendiente.</p>
+        <a href="{{ url_for('ventas.formulario_nuevo') }}" class="btn btn-primary">Registrar una venta</a>
+      </div>
+    {% else %}
+    <form method="POST"
+          action="{{ url_for('pagos.crear_pago') if accion == 'crear' else url_for('pagos.actualizar_pago', id=pago.id_pago) }}"
+          class="form-grid">
+
+      <div class="form-group full">
+        <label for="id_venta">Venta *</label>
+        <select id="id_venta" name="id_venta" required>
+          <option value="">-- Seleccione una venta --</option>
+          {% for venta in ventas %}
+          <option value="{{ venta.id_venta }}" {{ 'selected' if datos.get('id_venta')|string == venta.id_venta|string }}>
+            #{{ venta.id_venta }} &middot; {{ venta.cliente.nombre_completo }} &middot; Apto {{ venta.apartamento.numero_apartamento }}
+            &middot; Saldo {{ venta.saldo|pesos }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="fecha_pago">Fecha de pago *</label>
+        <input type="date" id="fecha_pago" name="fecha_pago" required
+               value="{{ datos.get('fecha_pago', '') }}">
+        <small>No futura ni anterior a la fecha de la venta.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="monto">Monto (COP) *</label>
+        <input type="number" id="monto" name="monto" step="0.01" min="1" required
+               value="{{ datos.get('monto', '') }}" placeholder="Ej: 5000000">
+        <small>Sin puntos de miles.</small>
+      </div>
+
+      <div class="form-group full">
+        <label for="metodo_pago">Metodo de pago *</label>
+        <select id="metodo_pago" name="metodo_pago" required>
+          <option value="">-- Seleccione un metodo --</option>
+          {% for metodo in metodos %}
+          <option value="{{ metodo }}" {{ 'selected' if datos.get('metodo_pago') == metodo }}>{{ metodo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('pagos.listar_pagos') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Registrar pago' if accion == 'crear' else 'Guardar cambios' }}</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+{% endblock %}

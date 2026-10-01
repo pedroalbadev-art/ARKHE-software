@@ -1,25 +1,10 @@
 """
-utils/validaciones.py
-----------------------
-Funciones de validacion de contenido, reutilizadas por routes/clientes.py
-y routes/usuarios.py (y por los modulos que se agreguen despues, como
-Proyectos). Se centralizan aqui en vez de repetir la misma logica en
-cada archivo de rutas, siguiendo el principio DRY (no te repitas) -- el
-mismo criterio que ya se aplico para no repetir estilos CSS entre
-modulos.
+utils/validaciones.py (v2)
+---------------------------
+Funciones de validacion de contenido, reutilizadas por todos los modulos.
 
-Contexto (evidencia GA7-220501096-AA3-EV02): antes de esta evidencia,
-los formularios de ARKHE solo validaban con el atributo "required" del
-HTML (que un dato no venga vacio) y con las restricciones NOT NULL /
-UNIQUE de la base de datos. Eso protege contra campos vacios, pero no
-contra datos con formato invalido (ej. un correo sin "@", un documento
-con letras). Estas funciones cierran esa brecha en el backend, que es
-la capa que de verdad protege la base de datos (la validacion HTML es
-solo la primera linea de defensa, un usuario tecnico la puede saltar).
-
-Cada funcion "es_..." devuelve True/False y no lanza excepciones ante
-un valor vacio o None -- así se puede usar directamente sobre datos
-que vienen de request.form.get(...), que pueden no existir.
+Actualizado 2026-09-30 (GA7-AA5-EV03):
+  - Agregada validar_solo_letras() para ciudad (solo letras y espacios)
 """
 
 import re
@@ -32,6 +17,44 @@ PATRON_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 ROLES_VALIDOS = {"Administrador", "Vendedor", "Gerente"}
 ESTADOS_VALIDOS = {"activo", "inactivo"}
+
+
+def validar_no_vacio(valor):
+    """
+    Valida que un campo no esté vacío.
+    Retorna True si el valor tiene contenido después de .strip()
+    """
+    return bool((valor or "").strip())
+
+
+def validar_lengitud(valor, min_len=0, max_len=None):
+    """
+    Valida la longitud de un campo.
+
+    Args:
+        valor: el string a validar
+        min_len: longitud mínima (por defecto 0)
+        max_len: longitud máxima (por defecto None = sin límite)
+
+    Retorna True si la longitud está dentro del rango
+    """
+    valor = (valor or "").strip()
+    longitud = len(valor)
+
+    if max_len is not None:
+        return min_len <= longitud <= max_len
+    else:
+        return longitud >= min_len
+
+
+def validar_solo_letras(valor):
+    """
+    Valida que un campo contenga SOLO letras y espacios.
+    Rechaza números y caracteres especiales.
+    Usado para ciudad, campos de nombre, etc.
+    """
+    valor = (valor or "").strip()
+    return bool(valor) and bool(PATRON_SOLO_LETRAS.match(valor))
 
 
 def es_texto_valido(valor):
@@ -78,3 +101,56 @@ def es_rol_valido(valor):
 
 def es_estado_valido(valor):
     return valor in ESTADOS_VALIDOS
+
+
+# ---------------------------------------------------------------------
+# Conversores agregados en GA7-AA5-EV03 (Proyectos, Apartamentos,
+# Ventas, Pagos). Cada uno devuelve el valor convertido o None si el
+# texto recibido del formulario no es valido, para que las rutas puedan
+# validar sin repetir bloques try/except en cada campo.
+# ---------------------------------------------------------------------
+
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
+
+# Numero de apartamento: letras, numeros, guion y espacios (ej. "301", "Torre A-502").
+PATRON_NUMERO_APTO = re.compile(r"^[A-Za-z0-9\- ]+$")
+
+
+def a_entero(valor):
+    """'3' -> 3. Texto vacio, decimal o con letras -> None."""
+    try:
+        return int(str(valor).strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def a_decimal(valor):
+    """'350000000.50' -> Decimal. Acepta solo numeros con punto decimal
+    (sin separadores de miles). Texto invalido -> None."""
+    try:
+        numero = Decimal(str(valor).strip())
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return numero if numero.is_finite() else None
+
+
+def a_fecha(valor):
+    """'2026-09-30' (formato de <input type="date">) -> date. Invalido -> None."""
+    try:
+        return datetime.strptime((valor or "").strip(), "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def es_fecha_futura(fecha):
+    return fecha > date.today()
+
+
+def es_numero_apto_valido(valor):
+    valor = (valor or "").strip()
+    return bool(valor) and bool(PATRON_NUMERO_APTO.match(valor))
+
+
+# Tope para columnas DECIMAL(15,2): 13 digitos enteros.
+MAXIMO_DECIMAL_15_2 = Decimal("9999999999999.99")

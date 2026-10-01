@@ -1,0 +1,17 @@
+ARKHE - Repositorio del proyecto
+==================================
+
+Enlace del repositorio (GitHub):
+https://github.com/pedroalbadev-art/ARKHE-software
+
+Evidencias desarrolladas en este repositorio:
+- GA7-220501096-AA3-EV01 (Codificacion de modulos): modulo Clientes
+- GA7-220501096-AA3-EV02 (Pruebas de validacion): modulo Usuarios
+- GA7-220501096-AA5-EV03 (Servicios web - proyecto): modulos Proyectos,
+  Apartamentos, Ventas, Pagos y panel de Inicio
+
+Estudiantes:
+- Pedro Alba
+- Alejandro Zapata
+
+Ficha: 3235890

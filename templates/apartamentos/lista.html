@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Apartamentos - ARKHE{% endblock %}
+{% block titulo_pagina %}Gestion de Apartamentos{% endblock %}
+
+{% block content %}
+  <div class="kpis">
+    {% for titulo, estado, color in [('Total apartamentos', None, 'var(--dorado)'),
+                                     ('Disponibles', 'disponible', '#15803D'),
+                                     ('Reservados', 'reservado', '#B45309'),
+                                     ('Vendidos', 'vendido', '#B91C1C')] %}
+    <div class="kpi"><div>
+      <p class="kpi-titulo">{{ titulo }}</p>
+      <p class="kpi-valor" style="color: {{ color }};">
+        {{ apartamentos|length if estado is none else apartamentos|selectattr('estado', 'equalto', estado)|list|length }}
+      </p>
+    </div></div>
+    {% endfor %}
+  </div>
+
+  <div class="herramientas">
+    <input type="search" id="buscador" placeholder="Buscar por numero o proyecto...">
+    <select data-filtro="proyecto" aria-label="Filtrar por proyecto">
+      <option value="">Todos los proyectos</option>
+      {% for nombre in apartamentos|map(attribute='proyecto.nombre_proyecto')|unique|sort %}
+      <option value="{{ nombre }}">{{ nombre }}</option>
+      {% endfor %}
+    </select>
+    <select data-filtro="estado" aria-label="Filtrar por estado">
+      <option value="">Todos los estados</option>
+      <option value="disponible">Disponible</option>
+      <option value="reservado">Reservado</option>
+      <option value="vendido">Vendido</option>
+    </select>
+    <a href="{{ url_for('apartamentos.formulario_nuevo') }}" class="btn btn-primary">+ Nuevo Apartamento</a>
+  </div>
+
+  <div class="tarjeta tarjeta-sin-padding">
+    <div class="tabla-wrap">
+      <table class="table" id="tabla-datos">
+        <thead>
+          <tr>
+            <th>Proyecto</th>
+            <th>Apartamento</th>
+            <th class="num">Area (m²)</th>
+            <th class="num">Habitaciones</th>
+            <th class="num">Baños</th>
+            <th class="num">Precio</th>
+            <th class="centro">Estado</th>
+            <th class="centro">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for apto in apartamentos %}
+          <tr data-fila data-filtro-proyecto="{{ apto.proyecto.nombre_proyecto }}" data-filtro-estado="{{ apto.estado|lower }}">
+            <td><span class="badge badge-proyecto">{{ apto.proyecto.nombre_proyecto }}</span></td>
+            <td class="fuerte">{{ apto.numero_apartamento }}</td>
+            <td class="num">{{ apto.area_m2 }}</td>
+            <td class="num">{{ apto.habitaciones }}</td>
+            <td class="num">{{ apto.banos }}</td>
+            <td class="num">{{ apto.precio|pesos }}</td>
+            <td class="centro"><span class="badge badge-{{ apto.estado|lower }}">{{ apto.estado|capitalize }}</span></td>
+            <td>
+              <div class="acciones" style="justify-content:center;">
+                <a href="{{ url_for('apartamentos.formulario_editar', id=apto.id_apartamento) }}" class="btn btn-sm accion-editar">Editar</a>
+                {% if not apto.venta %}
+                <form method="POST" action="{{ url_for('apartamentos.eliminar_apartamento', id=apto.id_apartamento) }}"
+                      onsubmit="return confirm('¿Eliminar el apartamento {{ apto.numero_apartamento }}?');">
+                  <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="vacio">Aun no hay apartamentos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pie-tabla">
+      <span>Mostrando <strong id="contador-visibles">{{ apartamentos|length }}</strong> de {{ apartamentos|length }} apartamento(s)</span>
+    </div>
+  </div>
+{% endblock %}

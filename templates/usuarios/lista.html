@@ -1,117 +1,99 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>ARKHE - Usuarios</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/usuarios.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-  <div class="topbar">ARKHE &middot; Modulo de Usuarios</div>
+{% block title %}Usuarios - ARKHE{% endblock %}
+{% block titulo_pagina %}Gestion de Usuarios{% endblock %}
 
-  <div class="content">
-
-    {% with mensajes = get_flashed_messages(with_categories=true) %}
-      {% for categoria, mensaje in mensajes %}
-        <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
-      {% endfor %}
-    {% endwith %}
-
-    <div class="accion-bar">
-      <button class="btn-nuevo" onclick="document.getElementById('modalNuevo').classList.add('abierto')">
-        + Nuevo Usuario
-      </button>
-      <p style="margin:0; color:#6B7280; font-size:13px;">
-        Mostrando {{ usuarios|length }} usuario(s)
-      </p>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nombre</th>
-          <th>Apellido</th>
-          <th>Correo Electronico</th>
-          <th>Rol</th>
-          <th>Estado</th>
-          <th style="text-align:center;">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for usuario in usuarios %}
-        <tr>
-          <td>{{ usuario.id_usuario }}</td>
-          <td>{{ usuario.nombre }}</td>
-          <td>{{ usuario.apellido }}</td>
-          <td>{{ usuario.correo }}</td>
-          <td><span class="badge badge-rol-{{ usuario.rol|lower }}">{{ usuario.rol }}</span></td>
-          <td><span class="badge badge-estado-{{ usuario.estado }}">{{ usuario.estado }}</span></td>
-          <td style="text-align:center;">
-            <a class="btn-accion btn-editar"
-               href="{{ url_for('usuarios.editar_usuario', id_usuario=usuario.id_usuario) }}">Editar</a>
-            <form action="{{ url_for('usuarios.eliminar_usuario', id_usuario=usuario.id_usuario) }}"
-                  method="post" style="display:inline;"
-                  onsubmit="return confirm('¿Eliminar a {{ usuario.nombre_completo }}?');">
-              <button type="submit" class="btn-accion btn-eliminar">Eliminar</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="7" style="text-align:center; color:#6B7280; padding:24px;">
-            Aun no hay usuarios registrados.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% block content %}
+  <div class="herramientas">
+    <input type="search" id="buscador" placeholder="Buscar por nombre o correo...">
+    <select data-filtro="rol" aria-label="Filtrar por rol">
+      <option value="">Todos los roles</option>
+      {% for rol in roles %}<option value="{{ rol }}">{{ rol }}</option>{% endfor %}
+    </select>
+    <select data-filtro="estado" aria-label="Filtrar por estado">
+      <option value="">Todos los estados</option>
+      <option value="activo">Activo</option>
+      <option value="inactivo">Inactivo</option>
+    </select>
+    <button type="button" class="btn btn-primary" onclick="abrirModal('modalNuevo')">+ Nuevo Usuario</button>
   </div>
 
-  <!-- Modal "Nuevo Usuario" -->
+  <div class="tarjeta tarjeta-sin-padding">
+    <div class="tabla-wrap">
+      <table class="table" id="tabla-datos">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre completo</th>
+            <th>Correo electronico</th>
+            <th>Rol</th>
+            <th class="centro">Estado</th>
+            <th class="centro">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for usuario in usuarios %}
+          <tr data-fila data-filtro-rol="{{ usuario.rol }}" data-filtro-estado="{{ usuario.estado }}">
+            <td>U{{ '%03d' % usuario.id_usuario }}</td>
+            <td class="fuerte">{{ usuario.nombre_completo }}</td>
+            <td class="suave">{{ usuario.correo }}</td>
+            <td><span class="badge badge-{{ usuario.rol|lower }}">{{ usuario.rol }}</span></td>
+            <td class="centro"><span class="badge badge-{{ usuario.estado }}">{{ usuario.estado }}</span></td>
+            <td>
+              <div class="acciones" style="justify-content:center;">
+                <a class="btn btn-sm accion-editar" href="{{ url_for('usuarios.editar_usuario', id_usuario=usuario.id_usuario) }}">Editar</a>
+                <form action="{{ url_for('usuarios.eliminar_usuario', id_usuario=usuario.id_usuario) }}" method="post"
+                      onsubmit="return confirm('¿Eliminar a {{ usuario.nombre_completo }}?');">
+                  <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="vacio">Aun no hay usuarios registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pie-tabla">
+      <span>Mostrando <strong id="contador-visibles">{{ usuarios|length }}</strong> de {{ usuarios|length }} usuario(s)</span>
+    </div>
+  </div>
+
+  <!-- Modal "Nuevo Usuario" (los usuarios nuevos inician 'activo') -->
   <div class="modal-overlay" id="modalNuevo">
     <div class="modal-card">
       <div class="modal-header">
-        <h2 style="margin:0; font-size:18px; font-weight:600;">Nuevo Usuario</h2>
-        <button onclick="document.getElementById('modalNuevo').classList.remove('abierto')"
-                style="background:transparent; border:none; font-size:22px; color:#6B7280; cursor:pointer;">
-          &times;
-        </button>
+        <h2>Nuevo Usuario</h2>
+        <button type="button" class="modal-cerrar" onclick="cerrarModal('modalNuevo')" aria-label="Cerrar">&times;</button>
       </div>
-      <div class="modal-body">
-        <form method="post" action="{{ url_for('usuarios.crear_usuario') }}">
-          <div class="campo">
-            <label>Nombre</label>
-            <input type="text" name="nombre" placeholder="Ej: Laura"
-                   pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
-          </div>
-          <div class="campo">
-            <label>Apellido</label>
-            <input type="text" name="apellido" placeholder="Ej: Ramirez Torres"
-                   pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
-          </div>
-          <div class="campo">
-            <label>Correo Electronico</label>
-            <input type="email" name="correo" placeholder="laura.ramirez@arkhe.com" required>
-          </div>
-          <div class="campo">
-            <label>Contraseña</label>
-            <input type="password" name="contrasena" placeholder="Minimo 8 caracteres"
-                   minlength="8" required>
-          </div>
-          <div class="campo">
-            <label>Rol</label>
-            <select name="rol" required>
-              {% for rol in roles %}
-              <option value="{{ rol }}">{{ rol }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <button type="submit" class="btn-nuevo" style="width:100%;">Guardar Usuario</button>
-        </form>
-      </div>
+      <form method="post" action="{{ url_for('usuarios.crear_usuario') }}" class="modal-body">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" name="nombre" placeholder="Ej: Laura" required
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
+        </div>
+        <div class="form-group">
+          <label>Apellido</label>
+          <input type="text" name="apellido" placeholder="Ej: Ramirez Torres" required
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
+        </div>
+        <div class="form-group">
+          <label>Correo electronico</label>
+          <input type="email" name="correo" placeholder="laura.ramirez@arkhe.com" required>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" name="contrasena" placeholder="Minimo 8 caracteres" minlength="8" required>
+        </div>
+        <div class="form-group">
+          <label>Rol</label>
+          <select name="rol" required>
+            {% for rol in roles %}<option value="{{ rol }}">{{ rol }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar usuario</button>
+      </form>
     </div>
   </div>
-
-</body>
-</html>
+{% endblock %}

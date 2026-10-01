@@ -3,23 +3,41 @@ app.py
 ------
 Punto de entrada de la aplicacion ARKHE (ERP inmobiliario).
 
-Registra los modulos construidos hasta ahora como blueprints de
-Flask: Clientes (evidencia GA7-220501096-AA3-EV01) y Usuarios
-(evidencia GA7-220501096-AA3-EV02). Los proximos modulos (Proyectos,
-Apartamentos, Ventas, Pagos) se iran agregando aqui de la misma
-forma.
+Registra TODOS los modulos construidos como blueprints de Flask:
+  - Dashboard (página de inicio)
+  - Clientes (GA7-220501096-AA3-EV01)
+  - Usuarios (GA7-220501096-AA3-EV02)
+  - Proyectos (GA7-220501096-AA5-EV03)
+  - Apartamentos (GA7-220501096-AA5-EV03)
+  - Ventas (GA7-220501096-AA5-EV03)
+  - Pagos (GA7-220501096-AA5-EV03)
+
+Este archivo cierra la evidencia GA7-220501096-AA5-EV03 "Diseño y desarrollo de
+servicios web - proyecto" con los 4 módulos finales construidos + Dashboard.
 
 Para ejecutar el proyecto (con el entorno virtual activo y las
 dependencias de requirements.txt instaladas):
     python app.py
+
+Los módulos están organizados por carpetas:
+  - models/        : Definición de modelos SQLAlchemy (ORM)
+  - routes/        : Blueprints con CRUD y lógica de negocio
+  - templates/     : Templates HTML por módulo
+  - static/        : CSS y assets estáticos
+  - utils/         : Funciones utilitarias compartidas
 """
 
-from flask import Flask, redirect, url_for
+from flask import Flask
 
 from config import Config
 from models import db
+from routes.dashboard import dashboard_bp
 from routes.clientes import clientes_bp
 from routes.usuarios import usuarios_bp
+from routes.proyectos import proyectos_bp
+from routes.apartamentos import apartamentos_bp
+from routes.ventas import ventas_bp
+from routes.pagos import pagos_bp
 
 
 def create_app():
@@ -38,15 +56,16 @@ def create_app():
     db.init_app(app)
 
     # Registra los blueprints (grupos de rutas) de cada modulo.
-    # url_prefix hace que todas las rutas de un modulo empiecen por su
-    # propio prefijo (ej: /clientes/, /usuarios/nuevo).
+    # El dashboard está registrado sin url_prefix porque es la raíz (/).
+    app.register_blueprint(dashboard_bp)
+
+    # El resto de módulos tienen su prefijo
     app.register_blueprint(clientes_bp, url_prefix="/clientes")
     app.register_blueprint(usuarios_bp, url_prefix="/usuarios")
-
-    @app.route("/")
-    def inicio():
-        """Redirige la raiz del sitio al modulo de clientes."""
-        return redirect(url_for("clientes.listar_clientes"))
+    app.register_blueprint(proyectos_bp, url_prefix="/proyectos")
+    app.register_blueprint(apartamentos_bp, url_prefix="/apartamentos")
+    app.register_blueprint(ventas_bp, url_prefix="/ventas")
+    app.register_blueprint(pagos_bp, url_prefix="/pagos")
 
     return app
 

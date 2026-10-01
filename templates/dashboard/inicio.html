@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ARKHE{% endblock %}
+{% block titulo_pagina %}Dashboard{% endblock %}
+
+{% macro kpi(titulo, valor, nota, icono, enlace, dinero=false) %}
+  <a class="kpi" href="{{ enlace }}" style="text-decoration:none;">
+    <div>
+      <p class="kpi-titulo">{{ titulo }}</p>
+      <p class="kpi-valor {{ 'dinero' if dinero }}">{{ valor }}</p>
+      <p class="kpi-nota">{{ nota }}</p>
+    </div>
+    <div class="kpi-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ icono }}"/></svg></div>
+  </a>
+{% endmacro %}
+
+{% block content %}
+  <!-- Indicadores principales (KPI) -->
+  <div class="kpis">
+    {{ kpi('Total clientes', total_clientes, usuarios_activos ~ ' usuario(s) activo(s) en el sistema',
+           'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 10v-1a6 6 0 0 1 12 0v1M16 3.1a4 4 0 0 1 0 7.8M22 21v-1a6 6 0 0 0-4-5.6',
+           url_for('clientes.listar_clientes')) }}
+    {{ kpi('Total proyectos', total_proyectos, total_apartamentos ~ ' apartamento(s) registrados',
+           'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1',
+           url_for('proyectos.listar_proyectos')) }}
+    {{ kpi('Apartamentos disponibles', apartamentos_disponibles, 'de ' ~ total_apartamentos ~ ' totales',
+           'M4 21V10l8-6 8 6v11M9 21v-6h6v6',
+           url_for('apartamentos.listar_apartamentos')) }}
+    {{ kpi('Ventas realizadas', total_vendido|pesos, total_ventas ~ ' venta(s) registrada(s)',
+           'M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2M9 20h.01M17 20h.01',
+           url_for('ventas.listar_ventas'), true) }}
+    {{ kpi('Pagos registrados', total_recaudado|pesos, porcentaje_recaudado ~ '% del valor vendido',
+           'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 3.5v11M15 9c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2.2 0 3 6 1.6 6 4.6 0 1.4-1.3 2.2-3 2.2-1.4 0-2.5-.5-3-1.5',
+           url_for('pagos.listar_pagos'), true) }}
+  </div>
+
+  <div class="fila-2">
+    <!-- Ventas por mes: una sola serie, color dorado, sin leyenda -->
+    <div class="tarjeta">
+      <h3>Ventas mensuales</h3>
+      <div class="grafico" role="img" aria-label="Valor vendido en los ultimos 6 meses">
+        {% for etiqueta, total, cantidad, alto in ventas_por_mes %}
+          <div class="grafico-col">
+            <span class="grafico-tip">{{ etiqueta }}: {{ total|pesos }} &middot; {{ cantidad }} venta(s)</span>
+            {% if total == maximo_mes and total > 0 %}<span class="grafico-valor">{{ total|pesos }}</span>{% endif %}
+            <div class="grafico-barra {{ 'cero' if total == 0 }}" style="height: {{ alto if total > 0 else 1 }}%;"></div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="grafico-etiquetas">
+        {% for etiqueta, total, cantidad, alto in ventas_por_mes %}<span>{{ etiqueta }}</span>{% endfor %}
+      </div>
+      <p class="nota">Valor de venta por mes, ultimos 6 meses (segun la fecha de venta).</p>
+    </div>
+
+    <!-- Estado de apartamentos y de ventas -->
+    <div class="tarjeta">
+      <h3>Estado de apartamentos</h3>
+      {% for texto, valor, color in [('Disponibles', apartamentos_disponibles, '#16A34A'),
+                                     ('Reservados', apartamentos_reservados, '#D97706'),
+                                     ('Vendidos', apartamentos_vendidos, '#DC2626')] %}
+      <div class="progreso">
+        <div class="progreso-cabecera"><span>{{ texto }}</span><span>{{ valor }}</span></div>
+        <div class="progreso-barra">
+          <div style="width: {{ (valor * 100 / total_apartamentos)|round(1) if total_apartamentos else 0 }}%; background: {{ color }};"></div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <h3 style="margin-top:28px;">Estado de ventas</h3>
+      {% for texto, valor, color in [('Pendientes (sin pagos)', ventas_pendientes, '#D97706'),
+                                     ('En pago', ventas_en_pago, '#2563EB'),
+                                     ('Pagadas', ventas_pagadas, '#16A34A')] %}
+      <div class="progreso">
+        <div class="progreso-cabecera"><span>{{ texto }}</span><span>{{ valor }}</span></div>
+        <div class="progreso-barra">
+          <div style="width: {{ (valor * 100 / total_ventas)|round(1) if total_ventas else 0 }}%; background: {{ color }};"></div>
+        </div>
+      </div>
+      {% endfor %}
+      <p class="nota">Saldo por cobrar: <strong>{{ saldo_por_cobrar|pesos }}</strong></p>
+    </div>
+  </div>
+
+  <!-- Ultimas ventas -->
+  <div class="tarjeta">
+    <h3>Ultimas ventas registradas</h3>
+    {% if ultimas_ventas %}
+    <div class="tabla-wrap">
+      <table class="table tabla-compacta">
+        <thead>
+          <tr><th>Cliente</th><th>Proyecto</th><th>Apartamento</th><th class="num">Monto</th><th class="centro">Fecha</th><th class="centro">Estado</th></tr>
+        </thead>
+        <tbody>
+          {% for venta in ultimas_ventas %}
+          <tr>
+            <td class="fuerte">{{ venta.cliente.nombre_completo }}</td>
+            <td class="suave">{{ venta.apartamento.proyecto.nombre_proyecto }}</td>
+            <td class="suave">Apto {{ venta.apartamento.numero_apartamento }}</td>
+            <td class="num fuerte">{{ venta.valor_venta|pesos }}</td>
+            <td class="centro suave">{{ venta.fecha_venta.strftime('%d/%m/%Y') }}</td>
+            <td class="centro"><span class="badge badge-{{ venta.estado }}">{{ venta.estado }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="vacio">Aun no hay ventas registradas.</p>
+    {% endif %}
+  </div>
+
+  <!-- Ultimos pagos -->
+  <div class="tarjeta">
+    <h3>Ultimos pagos registrados</h3>
+    {% if ultimos_pagos %}
+    <div class="tabla-wrap">
+      <table class="table tabla-compacta">
+        <thead>
+          <tr><th>Cliente</th><th>Venta</th><th class="num">Monto</th><th class="centro">Fecha</th><th class="centro">Metodo</th></tr>
+        </thead>
+        <tbody>
+          {% for pago in ultimos_pagos %}
+          <tr>
+            <td class="fuerte">{{ pago.venta.cliente.nombre_completo }}</td>
+            <td class="suave">#{{ pago.id_venta }} &middot; Apto {{ pago.venta.apartamento.numero_apartamento }}</td>
+            <td class="num fuerte">{{ pago.monto|pesos }}</td>
+            <td class="centro suave">{{ pago.fecha_pago.strftime('%d/%m/%Y') }}</td>
+            <td class="centro suave">{{ pago.metodo_pago }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="vacio">Aun no hay pagos registrados.</p>
+    {% endif %}
+  </div>
+{% endblock %}

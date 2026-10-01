@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Ventas - ARKHE{% endblock %}
+{% block titulo_pagina %}Gestion de Ventas{% endblock %}
+
+{% block content %}
+  {% set vendido = ventas|sum(attribute='valor_venta') %}
+  {% set pagado = ventas|sum(attribute='total_pagado') %}
+  <div class="kpis">
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Ventas registradas</p>
+      <p class="kpi-valor">{{ ventas|length }}</p>
+      <p class="kpi-nota">{{ ventas|selectattr('estado', 'equalto', 'pagada')|list|length }} pagada(s) por completo</p>
+    </div></div>
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Valor vendido</p>
+      <p class="kpi-valor dinero">{{ vendido|pesos }}</p>
+    </div></div>
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Recaudado</p>
+      <p class="kpi-valor dinero">{{ pagado|pesos }}</p>
+    </div></div>
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Saldo por cobrar</p>
+      <p class="kpi-valor dinero">{{ (vendido - pagado)|pesos }}</p>
+    </div></div>
+  </div>
+
+  <div class="herramientas">
+    <input type="search" id="buscador" placeholder="Buscar por ID, cliente, proyecto o apartamento...">
+    <select data-filtro="estado" aria-label="Filtrar por estado">
+      <option value="">Todos los estados</option>
+      <option value="pendiente">Pendiente (sin pagos)</option>
+      <option value="en-pago">En pago</option>
+      <option value="pagada">Pagada</option>
+    </select>
+    <a href="{{ url_for('ventas.formulario_nuevo') }}" class="btn btn-primary">+ Nueva Venta</a>
+  </div>
+
+  <div class="tarjeta tarjeta-sin-padding">
+    <div class="tabla-wrap">
+      <table class="table" id="tabla-datos">
+        <thead>
+          <tr>
+            <th>ID venta</th>
+            <th>Cliente</th>
+            <th>Proyecto / apartamento</th>
+            <th>Fecha venta</th>
+            <th class="num">Valor venta</th>
+            <th class="num">Saldo</th>
+            <th class="centro">Estado</th>
+            <th class="centro">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venta in ventas %}
+          <tr data-fila data-filtro-estado="{{ venta.estado }}">
+            <td>V-{{ '%03d' % venta.id_venta }}</td>
+            <td class="fuerte">{{ venta.cliente.nombre_completo }}</td>
+            <td class="suave">{{ venta.apartamento.proyecto.nombre_proyecto }} &middot; Apto {{ venta.apartamento.numero_apartamento }}</td>
+            <td class="suave">{{ venta.fecha_venta.strftime('%d/%m/%Y') }}</td>
+            <td class="num">{{ venta.valor_venta|pesos }}</td>
+            <td class="num">{{ venta.saldo|pesos }}</td>
+            <td class="centro"><span class="badge badge-{{ venta.estado }}">{{ venta.estado }}</span></td>
+            <td>
+              <div class="acciones" style="justify-content:center;">
+                <a href="{{ url_for('pagos.listar_pagos', venta=venta.id_venta) }}" class="btn btn-sm accion-ver">Pagos ({{ venta.pagos|length }})</a>
+                <a href="{{ url_for('ventas.formulario_editar', id=venta.id_venta) }}" class="btn btn-sm accion-editar">Editar</a>
+                {% if not venta.pagos %}
+                <form method="POST" action="{{ url_for('ventas.eliminar_venta', id=venta.id_venta) }}"
+                      onsubmit="return confirm('¿Eliminar la venta #{{ venta.id_venta }}? El apartamento volvera a estar disponible.');">
+                  <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="vacio">Aun no hay ventas registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pie-tabla">
+      <span>Mostrando <strong id="contador-visibles">{{ ventas|length }}</strong> de {{ ventas|length }} venta(s). El estado se calcula con los pagos recibidos.</span>
+    </div>
+  </div>
+{% endblock %}

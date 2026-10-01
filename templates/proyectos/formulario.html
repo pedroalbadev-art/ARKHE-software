@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nuevo Proyecto' if accion == 'crear' else 'Editar Proyecto' }} - ARKHE{% endblock %}
+
+{% block titulo_pagina %}{{ 'Nuevo Proyecto' if accion == 'crear' else 'Editar Proyecto' }}{% endblock %}
+
+{% block content %}
+  <div class="tarjeta form-card">
+    <p class="nota" style="margin:0 0 18px;">Los campos con * son obligatorios</p>
+    <form method="POST"
+          action="{{ url_for('proyectos.crear_proyecto') if accion == 'crear' else url_for('proyectos.actualizar_proyecto', id=proyecto.id_proyecto) }}"
+          class="form-grid">
+
+      <div class="form-group">
+        <label for="nombre_proyecto">Nombre del proyecto *</label>
+        <input type="text" id="nombre_proyecto" name="nombre_proyecto" maxlength="150" required
+               value="{{ proyecto.nombre_proyecto if proyecto else nombre or '' }}"
+               placeholder="Ej: Tabora House">
+      </div>
+
+      <div class="form-group">
+        <label for="id_cliente">Cliente *</label>
+        {% set cliente_sel = (proyecto.id_cliente if proyecto else id_cliente)|string %}
+        <select id="id_cliente" name="id_cliente" required>
+          <option value="">-- Seleccione un cliente --</option>
+          {% for cliente in clientes %}
+          <option value="{{ cliente.id_cliente }}" {{ 'selected' if cliente_sel == cliente.id_cliente|string }}>
+            {{ cliente.nombre_completo }} ({{ cliente.documento }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="direccion">Direccion *</label>
+        <input type="text" id="direccion" name="direccion" maxlength="200" required
+               value="{{ proyecto.direccion if proyecto else direccion or '' }}"
+               placeholder="Ej: Calle 80 # 100-25">
+      </div>
+
+      <div class="form-group">
+        <label for="ciudad">Ciudad *</label>
+        <input type="text" id="ciudad" name="ciudad" maxlength="100" required
+               value="{{ proyecto.ciudad if proyecto else ciudad or '' }}"
+               placeholder="Ej: Bogota">
+        <small>Solo letras y espacios.</small>
+      </div>
+
+      <div class="form-group full">
+        <label for="id_usuario">Usuario gestor *</label>
+        {% set usuario_sel = (proyecto.id_usuario if proyecto else id_usuario)|string %}
+        <select id="id_usuario" name="id_usuario" required>
+          <option value="">-- Seleccione un usuario activo --</option>
+          {% for usuario in usuarios %}
+          <option value="{{ usuario.id_usuario }}" {{ 'selected' if usuario_sel == usuario.id_usuario|string }}>
+            {{ usuario.nombre_completo }} ({{ usuario.rol }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group full">
+        <label for="descripcion">Descripcion (opcional)</label>
+        <textarea id="descripcion" name="descripcion" rows="4"
+                  placeholder="Detalles del proyecto...">{{ proyecto.descripcion if proyecto and proyecto.descripcion else descripcion or '' }}</textarea>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('proyectos.listar_proyectos') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Crear proyecto' if accion == 'crear' else 'Guardar cambios' }}</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

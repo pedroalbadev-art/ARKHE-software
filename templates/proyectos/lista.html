@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Proyectos - ARKHE{% endblock %}
+{% block titulo_pagina %}Gestion de Proyectos{% endblock %}
+
+{% block content %}
+  {% set total_aptos = proyectos|map(attribute='apartamentos')|map('length')|sum %}
+  <div class="kpis">
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Total de proyectos</p>
+      <p class="kpi-valor">{{ proyectos|length }}</p>
+      <p class="kpi-nota">Proyectos inmobiliarios registrados</p>
+    </div></div>
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Apartamentos</p>
+      <p class="kpi-valor">{{ total_aptos }}</p>
+      <p class="kpi-nota">En todos los proyectos</p>
+    </div></div>
+    <div class="kpi"><div>
+      <p class="kpi-titulo">Ciudades</p>
+      <p class="kpi-valor">{{ proyectos|map(attribute='ciudad')|map('lower')|unique|list|length }}</p>
+      <p class="kpi-nota">Con al menos un proyecto</p>
+    </div></div>
+  </div>
+
+  <div class="herramientas">
+    <a href="{{ url_for('proyectos.formulario_nuevo') }}" class="btn btn-primary">+ Nuevo Proyecto</a>
+    <input type="search" id="buscador" placeholder="Buscar proyecto por nombre, ciudad, cliente o gestor...">
+  </div>
+
+  <div class="tarjeta tarjeta-sin-padding">
+    <div class="tabla-wrap">
+      <table class="table" id="tabla-datos">
+        <thead>
+          <tr>
+            <th>Nombre del proyecto</th>
+            <th>Cliente</th>
+            <th>Ubicacion</th>
+            <th>Responsable</th>
+            <th class="num">Apartamentos</th>
+            <th class="centro">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proyecto in proyectos %}
+          <tr data-fila>
+            <td class="fuerte" style="color:var(--dorado);">{{ proyecto.nombre_proyecto }}</td>
+            <td><span class="badge badge-proyecto">{{ proyecto.cliente.nombre_completo }}</span></td>
+            <td>{{ proyecto.direccion }}, {{ proyecto.ciudad }}</td>
+            <td>
+              {{ proyecto.usuario.nombre_completo }}
+              <span class="badge badge-{{ proyecto.usuario.rol|lower }}">{{ proyecto.usuario.rol }}</span>
+            </td>
+            <td class="num">{{ proyecto.apartamentos|length }}</td>
+            <td>
+              <div class="acciones" style="justify-content:center;">
+                <a href="{{ url_for('proyectos.formulario_editar', id=proyecto.id_proyecto) }}" class="btn btn-sm accion-editar">Editar</a>
+                <form method="POST" action="{{ url_for('proyectos.eliminar_proyecto', id=proyecto.id_proyecto) }}"
+                      onsubmit="return confirm('¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?');">
+                  <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="vacio">Aun no hay proyectos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pie-tabla">
+      <span>Mostrando <strong id="contador-visibles">{{ proyectos|length }}</strong> de {{ proyectos|length }} proyecto(s)</span>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Nueva Venta' if accion == 'crear' else 'Editar Venta' }} - ARKHE{% endblock %}
+
+{% block titulo_pagina %}{{ 'Nueva Venta' if accion == 'crear' else 'Editar Venta #' ~ venta.id_venta }}{% endblock %}
+
+{% block content %}
+  <div class="tarjeta form-card">
+    <p class="nota" style="margin:0 0 18px;">Solo aparecen los apartamentos disponibles o reservados. Al guardar, el apartamento pasa a "vendido".</p>
+    {% if not apartamentos %}
+      <div class="vacio">
+        <p>No hay apartamentos disponibles o reservados para vender.</p>
+        <a href="{{ url_for('apartamentos.formulario_nuevo') }}" class="btn btn-primary">Crear un apartamento</a>
+      </div>
+    {% else %}
+    <form method="POST"
+          action="{{ url_for('ventas.crear_venta') if accion == 'crear' else url_for('ventas.actualizar_venta', id=venta.id_venta) }}"
+          class="form-grid">
+
+      <div class="form-group">
+        <label for="id_cliente">Cliente comprador *</label>
+        <select id="id_cliente" name="id_cliente" required>
+          <option value="">-- Seleccione un cliente --</option>
+          {% for cliente in clientes %}
+          <option value="{{ cliente.id_cliente }}" {{ 'selected' if datos.get('id_cliente')|string == cliente.id_cliente|string }}>
+            {{ cliente.nombre_completo }} ({{ cliente.documento }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="id_apartamento">Apartamento *</label>
+        <select id="id_apartamento" name="id_apartamento" required>
+          <option value="" data-precio="">-- Seleccione un apartamento --</option>
+          {% for apto in apartamentos %}
+          <option value="{{ apto.id_apartamento }}" data-precio="{{ apto.precio }}"
+                  {{ 'selected' if datos.get('id_apartamento')|string == apto.id_apartamento|string }}>
+            {{ apto.proyecto.nombre_proyecto }} &middot; Apto {{ apto.numero_apartamento }} &middot; {{ apto.precio|pesos }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="fecha_venta">Fecha de venta *</label>
+        <input type="date" id="fecha_venta" name="fecha_venta" required
+               value="{{ datos.get('fecha_venta', '') }}">
+        <small>No puede ser una fecha futura.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="valor_venta">Valor de venta (COP) *</label>
+        <input type="number" id="valor_venta" name="valor_venta" step="0.01" min="1" required
+               value="{{ datos.get('valor_venta', '') }}" placeholder="Se sugiere el precio del apartamento">
+        <small>Sin puntos de miles.{% if venta %} Ya pagado: {{ venta.total_pagado|pesos }}.{% endif %}</small>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('ventas.listar_ventas') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">{{ 'Registrar venta' if accion == 'crear' else 'Guardar cambios' }}</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+<script>
+  // Comodidad: al elegir un apartamento, sugiere su precio como valor de
+  // venta (solo si el campo esta vacio). El backend valida igual.
+  (function () {
+    var apto = document.getElementById("id_apartamento");
+    var valor = document.getElementById("valor_venta");
+    if (!apto || !valor) return;
+    apto.addEventListener("change", function () {
+      var precio = apto.options[apto.selectedIndex].getAttribute("data-precio");
+      if (precio && !valor.value) valor.value = precio;
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,114 +1,90 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>ARKHE - Clientes</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-  <div class="topbar">ARKHE &middot; Modulo de Clientes</div>
+{% block title %}Clientes - ARKHE{% endblock %}
+{% block titulo_pagina %}Gestion de Clientes{% endblock %}
 
-  <div class="content">
+{% block content %}
+  <div class="herramientas">
+    <button type="button" class="btn btn-primary" onclick="abrirModal('modalNuevo')">+ Nuevo Cliente</button>
+    <input type="search" id="buscador" placeholder="Buscar cliente por nombre, documento, correo o telefono...">
+  </div>
 
-    {% with mensajes = get_flashed_messages(with_categories=true) %}
-      {% for categoria, mensaje in mensajes %}
-        <div class="flash flash-{{ categoria }}">{{ mensaje }}</div>
-      {% endfor %}
-    {% endwith %}
-
-    <div class="accion-bar">
-      <button class="btn-nuevo" onclick="document.getElementById('modalNuevo').classList.add('abierto')">
-        + Nuevo Cliente
-      </button>
-      <p style="margin:0; color:#6B7280; font-size:13px;">
-        Mostrando {{ clientes|length }} cliente(s)
-      </p>
+  <div class="tarjeta tarjeta-sin-padding">
+    <div class="tabla-wrap">
+      <table class="table" id="tabla-datos">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre completo</th>
+            <th>Documento</th>
+            <th>Correo electronico</th>
+            <th>Telefono</th>
+            <th class="centro">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cliente in clientes %}
+          <tr data-fila>
+            <td>CLI-{{ '%03d' % cliente.id_cliente }}</td>
+            <td class="fuerte">{{ cliente.nombre_completo }}</td>
+            <td class="suave">{{ cliente.documento }}</td>
+            <td class="suave">{{ cliente.correo }}</td>
+            <td class="suave">{{ cliente.telefono }}</td>
+            <td>
+              <div class="acciones" style="justify-content:center;">
+                <a class="btn btn-sm accion-editar" href="{{ url_for('clientes.editar_cliente', id_cliente=cliente.id_cliente) }}">Editar</a>
+                <form action="{{ url_for('clientes.eliminar_cliente', id_cliente=cliente.id_cliente) }}" method="post"
+                      onsubmit="return confirm('¿Eliminar a {{ cliente.nombre_completo }}?');">
+                  <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="vacio">Aun no hay clientes registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nombre</th>
-          <th>Apellido</th>
-          <th>Documento</th>
-          <th>Correo Electronico</th>
-          <th>Telefono</th>
-          <th style="text-align:center;">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for cliente in clientes %}
-        <tr>
-          <td>{{ cliente.id_cliente }}</td>
-          <td>{{ cliente.nombre }}</td>
-          <td>{{ cliente.apellido }}</td>
-          <td>{{ cliente.documento }}</td>
-          <td>{{ cliente.correo }}</td>
-          <td>{{ cliente.telefono }}</td>
-          <td style="text-align:center;">
-            <a class="btn-accion btn-editar"
-               href="{{ url_for('clientes.editar_cliente', id_cliente=cliente.id_cliente) }}">Editar</a>
-            <form action="{{ url_for('clientes.eliminar_cliente', id_cliente=cliente.id_cliente) }}"
-                  method="post" style="display:inline;"
-                  onsubmit="return confirm('¿Eliminar a {{ cliente.nombre_completo }}?');">
-              <button type="submit" class="btn-accion btn-eliminar">Eliminar</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="7" style="text-align:center; color:#6B7280; padding:24px;">
-            Aun no hay clientes registrados.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="pie-tabla">
+      <span>Mostrando <strong id="contador-visibles">{{ clientes|length }}</strong> de {{ clientes|length }} cliente(s)</span>
+    </div>
   </div>
 
   <!-- Modal "Nuevo Cliente" -->
   <div class="modal-overlay" id="modalNuevo">
     <div class="modal-card">
       <div class="modal-header">
-        <h2 style="margin:0; font-size:18px; font-weight:600;">Nuevo Cliente</h2>
-        <button onclick="document.getElementById('modalNuevo').classList.remove('abierto')"
-                style="background:transparent; border:none; font-size:22px; color:#6B7280; cursor:pointer;">
-          &times;
-        </button>
+        <h2>Nuevo Cliente</h2>
+        <button type="button" class="modal-cerrar" onclick="cerrarModal('modalNuevo')" aria-label="Cerrar">&times;</button>
       </div>
-      <div class="modal-body">
-        <form method="post" action="{{ url_for('clientes.crear_cliente') }}">
-          <div class="campo">
-            <label>Nombre</label>
-            <input type="text" name="nombre" placeholder="Ej: Maria"
-                   pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
-          </div>
-          <div class="campo">
-            <label>Apellido</label>
-            <input type="text" name="apellido" placeholder="Ej: Garcia Lopez"
-                   pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios" required>
-          </div>
-          <div class="campo">
-            <label>Numero de Documento</label>
-            <input type="text" name="documento" placeholder="Ej: 1045234567"
-                   pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)" required>
-          </div>
-          <div class="campo">
-            <label>Correo Electronico</label>
-            <input type="email" name="correo" placeholder="maria.garcia@email.com" required>
-          </div>
-          <div class="campo">
-            <label>Telefono</label>
-            <input type="tel" name="telefono" placeholder="3151234567"
-                   pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)" required>
-          </div>
-          <button type="submit" class="btn-nuevo" style="width:100%;">Guardar Cliente</button>
-        </form>
-      </div>
+      <form method="post" action="{{ url_for('clientes.crear_cliente') }}" class="modal-body">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" name="nombre" placeholder="Ej: Maria" required
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
+        </div>
+        <div class="form-group">
+          <label>Apellido</label>
+          <input type="text" name="apellido" placeholder="Ej: Garcia Lopez" required
+                 pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
+        </div>
+        <div class="form-group">
+          <label>Numero de documento</label>
+          <input type="text" name="documento" placeholder="Ej: 1045234567" required
+                 pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)">
+        </div>
+        <div class="form-group">
+          <label>Correo electronico</label>
+          <input type="email" name="correo" placeholder="maria.garcia@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Telefono</label>
+          <input type="tel" name="telefono" placeholder="3151234567" required
+                 pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)">
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar cliente</button>
+      </form>
     </div>
   </div>
-
-</body>
-</html>
+{% endblock %}

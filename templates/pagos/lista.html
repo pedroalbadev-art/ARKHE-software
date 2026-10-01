@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Pagos - ARKHE{% endblock %}
+{% block titulo_pagina %}Gestion de Pagos{% endblock %}
+
+{% block content %}
+  {% if venta_filtro %}
+  <div class="tarjeta" style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <div>
+      <p class="kpi-titulo">Venta V-{{ '%03d' % venta_filtro.id_venta }}</p>
+      <p style="margin:4px 0 0;"><strong>{{ venta_filtro.cliente.nombre_completo }}</strong>
+        &middot; {{ venta_filtro.apartamento.proyecto.nombre_proyecto }} &middot; Apto {{ venta_filtro.apartamento.numero_apartamento }}</p>
+      <p class="nota" style="margin-top:4px;">Valor {{ venta_filtro.valor_venta|pesos }} &middot; Pagado {{ venta_filtro.total_pagado|pesos }} &middot; Saldo {{ venta_filtro.saldo|pesos }}
+        &nbsp;<span class="badge badge-{{ venta_filtro.estado }}">{{ venta_filtro.estado }}</span></p>
+    </div>
+    <a href="{{ url_for('pagos.listar_pagos') }}" class="btn btn-secondary">Ver todos los pagos</a>
+  </div>
+  {% endif %}
+
+  <div class="herramientas">
+    <input type="search" id="buscador" placeholder="Buscar por ID, cliente o venta...">
+    <select data-filtro="metodo" aria-label="Filtrar por metodo de pago">
+      <option value="">Todos los metodos</option>
+      {% for metodo in pagos|map(attribute='metodo_pago')|unique|sort %}
+      <option value="{{ metodo }}">{{ metodo }}</option>
+      {% endfor %}
+    </select>
+    <a href="{{ url_for('pagos.formulario_nuevo', venta=venta_filtro.id_venta) if venta_filtro else url_for('pagos.formulario_nuevo') }}"
+       class="btn btn-primary">+ Registrar Pago</a>
+  </div>
+
+  <div class="tarjeta tarjeta-sin-padding">
+    <div class="tabla-wrap">
+      <table class="table" id="tabla-datos">
+        <thead>
+          <tr>
+            <th>ID pago</th>
+            <th>Cliente</th>
+            <th>Venta asociada</th>
+            <th>Fecha</th>
+            <th class="num">Monto</th>
+            <th>Metodo</th>
+            <th class="centro">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pago in pagos %}
+          <tr data-fila data-filtro-metodo="{{ pago.metodo_pago }}">
+            <td class="fuerte">PAG-{{ '%03d' % pago.id_pago }}</td>
+            <td>{{ pago.venta.cliente.nombre_completo }}</td>
+            <td><a href="{{ url_for('pagos.listar_pagos', venta=pago.id_venta) }}" style="color:var(--dorado); font-weight:600; text-decoration:none;">V-{{ '%03d' % pago.id_venta }}</a>
+                <span class="suave">&middot; Apto {{ pago.venta.apartamento.numero_apartamento }}</span></td>
+            <td class="suave">{{ pago.fecha_pago.strftime('%d/%m/%Y') }}</td>
+            <td class="num fuerte">{{ pago.monto|pesos }}</td>
+            <td>{{ pago.metodo_pago }}</td>
+            <td>
+              <div class="acciones" style="justify-content:center;">
+                <a href="{{ url_for('pagos.formulario_editar', id=pago.id_pago) }}" class="btn btn-sm accion-editar">Editar</a>
+                <form method="POST" action="{{ url_for('pagos.eliminar_pago', id=pago.id_pago) }}"
+                      onsubmit="return confirm('¿Eliminar el pago #{{ pago.id_pago }}?');">
+                  <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="vacio">Aun no hay pagos registrados{{ ' para esta venta' if venta_filtro }}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pie-tabla">
+      <span>Mostrando <strong id="contador-visibles">{{ pagos|length }}</strong> de {{ pagos|length }} pago(s)</span>
+      <span>Total: <strong style="color:#15803D;">{{ pagos|sum(attribute='monto')|pesos }}</strong></span>
+    </div>
+  </div>
+{% endblock %}

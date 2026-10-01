@@ -1,0 +1,72 @@
+ARKHE - Evidencia GA7-220501096-AA5-EV03
+"Diseno y desarrollo de servicios web - proyecto"
+Instrucciones de entrega (lista de verificacion)
+==================================================================
+
+Modulos de esta evidencia: Proyectos, Apartamentos, Ventas y Pagos,
+mas el panel de Inicio. Clientes y Usuarios vienen de AA3-EV01/EV02.
+Stack: Python + Flask + Flask-SQLAlchemy + MySQL (ARKHE_V1).
+
+
+1. PROBAR LA APLICACION
+------------------------------------------------------------------
+[ ] Con el entorno virtual activo: python app.py
+[ ] Abrir http://localhost:5000
+[ ] Recorrer el flujo: cliente -> usuario -> proyecto -> apartamento
+    -> venta -> pago parcial -> pago por el saldo.
+[ ] Probar al menos un dato erroneo por modulo, por ejemplo:
+      - Proyecto con ciudad "Bogota123"          -> rechazado
+      - Apartamento con numero repetido          -> rechazado
+      - Venta con fecha futura                   -> rechazada
+      - Pago mayor que el saldo de la venta      -> rechazado
+      - Eliminar una venta que tiene pagos       -> rechazado
+
+
+2. CAPTURAS SUGERIDAS
+------------------------------------------------------------------
+[ ] Panel de Inicio con datos
+[ ] Lista de Proyectos, Apartamentos, Ventas y Pagos
+[ ] Un formulario mostrando mensajes de error de validacion
+[ ] Ventas mostrando el estado calculado (pendiente / en-pago / pagada)
+[ ] VS Code con la estructura de carpetas (models, routes, templates)
+[ ] Historial de commits (git log --oneline o GitHub)
+
+
+3. SUBIR A GITHUB
+------------------------------------------------------------------
+En la terminal de VS Code, dentro de ARKHE-software:
+
+    git status
+
+Revisar la lista. Agregar solo las carpetas y archivos del proyecto
+(no usar "git add ."):
+
+    git add app.py models routes templates static utils README.md INSTRUCCIONES_ENTREGA.txt enlace_repositorio.txt
+    git commit -m "feat: agregar modulos proyectos, apartamentos, ventas, pagos y panel de inicio (AA5-EV03)"
+    git push
+
+La carpeta "Claude outputs/" no hace parte del codigo: no se agrega.
+venv/ y .env ya estan excluidos por .gitignore.
+
+
+4. ARMAR EL ZIP
+------------------------------------------------------------------
+[ ] Copiar la carpeta ARKHE-software a otro lugar (por ejemplo, al
+    Escritorio con otro nombre).
+[ ] En la COPIA, borrar:
+      - venv/            (se regenera con pip install -r requirements.txt)
+      - .env             (contiene la contrasena de MySQL: nunca se entrega)
+      - __pycache__/     (en cada carpeta donde aparezca)
+      - Claude outputs/
+[ ] Comprimir la copia: clic derecho -> Enviar a -> Carpeta comprimida.
+[ ] Nombre segun la guia (NOMBRE_APELLIDO_AA5_EV03), por ejemplo:
+      PedroAlba_AA5_EV03.zip
+[ ] Abrir el ZIP y confirmar que tenga app.py, config.py, README.md,
+    requirements.txt, enlace_repositorio.txt, .env.example y las
+    carpetas models, routes, templates, static, utils y database.
+
+
+5. ENTREGAR
+------------------------------------------------------------------
+[ ] Subir el ZIP a la plataforma (y el instrumento de evaluacion en
+    PDF, si la plataforma lo pide como en evidencias anteriores).
