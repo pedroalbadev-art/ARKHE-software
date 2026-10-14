@@ -32,7 +32,7 @@ from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura
 pagos_bp = Blueprint("pagos", __name__)
 
 
-def _validar(form, pago=None):
+def validar_datos_pago(form, pago=None):
     errores = []
 
     id_venta = a_entero(form.get("id_venta"))
@@ -101,7 +101,7 @@ def formulario_nuevo():
 
 @pagos_bp.route("/crear", methods=["POST"])
 def crear_pago():
-    errores, datos = _validar(request.form)
+    errores, datos = validar_datos_pago(request.form)
     if errores:
         for error in errores:
             flash(error, "error")
@@ -140,7 +140,7 @@ def actualizar_pago(id):
         flash("El pago no existe.", "error")
         return redirect(url_for("pagos.listar_pagos"))
 
-    errores, datos = _validar(request.form, pago)
+    errores, datos = validar_datos_pago(request.form, pago)
     if errores:
         for error in errores:
             flash(error, "error")

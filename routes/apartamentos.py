@@ -39,7 +39,7 @@ from utils.validaciones import a_decimal, a_entero, es_numero_apto_valido, MAXIM
 apartamentos_bp = Blueprint("apartamentos", __name__)
 
 
-def _validar(form, apartamento=None):
+def validar_datos_apartamento(form, apartamento=None):
     """Devuelve (errores, datos_limpios). `apartamento` es el registro
     que se esta editando (None al crear)."""
     errores = []
@@ -123,7 +123,7 @@ def formulario_nuevo():
 
 @apartamentos_bp.route("/crear", methods=["POST"])
 def crear_apartamento():
-    errores, datos = _validar(request.form)
+    errores, datos = validar_datos_apartamento(request.form)
     if errores:
         for error in errores:
             flash(error, "error")
@@ -165,7 +165,7 @@ def actualizar_apartamento(id):
         flash("El apartamento no existe.", "error")
         return redirect(url_for("apartamentos.listar_apartamentos"))
 
-    errores, datos = _validar(request.form, apartamento)
+    errores, datos = validar_datos_apartamento(request.form, apartamento)
     if errores:
         for error in errores:
             flash(error, "error")

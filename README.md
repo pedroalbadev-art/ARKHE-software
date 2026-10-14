@@ -31,6 +31,7 @@ ARKHE-software/
 │   ├── cliente.py  usuario.py  proyecto.py
 │   └── apartamento.py  venta.py  pago.py
 ├── routes/                Un blueprint por módulo (CRUD + reglas de negocio)
+│   ├── api.py             API REST (JSON) de todos los modulos
 │   ├── dashboard.py  clientes.py  usuarios.py
 │   └── proyectos.py  apartamentos.py  ventas.py  pagos.py
 ├── templates/
@@ -44,6 +45,7 @@ ARKHE-software/
 ├── utils/
 │   ├── validaciones.py    Validaciones y conversores reutilizables
 │   └── formato.py         Formato de pesos ($185.000.000)
+├── docs/ARKHE_API.postman_collection.json   Pruebas de la API en Postman
 └── database/              Referencias de esquema y conexión histórica
 ```
 
@@ -56,6 +58,50 @@ Todas las pantallas comparten `templates/base.html`, construida a partir del moc
 - **Dashboard (`/`):** indicadores de clientes, proyectos, apartamentos disponibles, valor vendido y recaudado; gráfico de ventas de los últimos 6 meses; estado de apartamentos y de ventas; tablas de últimas ventas y últimos pagos. Todo sale de la base de datos, no hay datos fijos.
 - **Listados:** tarjetas de resumen (Apartamentos, Ventas, Proyectos), barra con buscador y filtros (por estado, proyecto, rol o método de pago) y tabla con acciones Editar/Eliminar. El buscador y los filtros funcionan en el navegador sobre las filas ya cargadas.
 - Algunos elementos de los mockups no se incluyeron porque la base de datos no tiene esas columnas: estado de clientes y de proyectos, usuario "@" y último acceso. El usuario conectado y "Cerrar sesión" tampoco se incluyeron, porque el inicio de sesión aún no está construido.
+
+## API REST (servicios web JSON)
+
+Además de las pantallas, ARKHE expone sus datos como **servicios web REST** bajo `/api` (`routes/api.py`). Reciben y responden **JSON**, así que pueden consumirlos otros sistemas o probarse con Postman.
+
+| Método | Ruta | Acción | Respuesta correcta |
+|---|---|---|---|
+| GET | `/api/<recurso>` | Listar | 200 |
+| GET | `/api/<recurso>/<id>` | Consultar uno | 200 |
+| POST | `/api/<recurso>` | Crear | 201 |
+| PUT | `/api/<recurso>/<id>` | Actualizar | 200 |
+| DELETE | `/api/<recurso>/<id>` | Eliminar | 200 |
+
+Recursos: `clientes`, `usuarios`, `proyectos`, `apartamentos`, `ventas` y `pagos`. Hay además tres rutas extra:
+
+- `GET /api` muestra el índice de servicios.
+- `GET /api/resumen` devuelve las cifras del dashboard.
+- Algunos listados aceptan filtros: `GET /api/apartamentos?estado=disponible`, `GET /api/ventas?estado=en-pago` y `GET /api/pagos?venta=<id>`.
+
+**Códigos de error:**
+
+- **400:** el cuerpo no es JSON o los datos no pasan las validaciones. La respuesta trae la lista de errores: `{"errores": ["..."]}`.
+- **404:** el registro no existe.
+- **409:** la operación rompe una regla de negocio, por ejemplo eliminar una venta que tiene pagos, o un dato único ya existe.
+
+**Métodos reutilizables.** La API no duplica las reglas: llama a las mismas funciones de validación que usan los formularios HTML. Esas funciones son `validar_datos_proyecto`, `validar_datos_apartamento`, `validar_datos_venta` y `validar_datos_pago`, junto con las de Clientes y Usuarios. Un dato inválido recibe el mismo mensaje por la pantalla y por la API. La contraseña de los usuarios nunca se devuelve en las respuestas.
+
+Ejemplo, crear un apartamento:
+
+```
+POST /api/apartamentos
+Content-Type: application/json
+
+{"id_proyecto": 1, "numero_apartamento": "301", "area_m2": 54.3,
+ "habitaciones": 3, "banos": 2, "precio": 185000000}
+```
+
+**Pruebas con Postman.** Importa `docs/ARKHE_API.postman_collection.json` en Postman y ejecútala en orden, o completa con el *Collection Runner*. La colección tiene 35 peticiones e incluye:
+
+- creación, consulta, actualización y eliminación de cada recurso;
+- casos con datos inválidos (400);
+- reglas de negocio bloqueadas (409) y registro inexistente (404).
+
+Cada POST guarda el id creado en una variable de la colección y las peticiones siguientes lo usan. La última carpeta elimina todo lo que se creó, así que la base de datos queda como estaba.
 
 ## Instalación
 

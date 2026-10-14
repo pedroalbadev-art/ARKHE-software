@@ -38,7 +38,7 @@ from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura, MA
 ventas_bp = Blueprint("ventas", __name__)
 
 
-def _validar(form, venta=None):
+def validar_datos_venta(form, venta=None):
     errores = []
 
     id_cliente = a_entero(form.get("id_cliente"))
@@ -107,7 +107,7 @@ def formulario_nuevo():
 
 @ventas_bp.route("/crear", methods=["POST"])
 def crear_venta():
-    errores, datos, apartamento = _validar(request.form)
+    errores, datos, apartamento = validar_datos_venta(request.form)
     if errores:
         for error in errores:
             flash(error, "error")
@@ -148,7 +148,7 @@ def actualizar_venta(id):
         flash("La venta no existe.", "error")
         return redirect(url_for("ventas.listar_ventas"))
 
-    errores, datos, apartamento_nuevo = _validar(request.form, venta)
+    errores, datos, apartamento_nuevo = validar_datos_venta(request.form, venta)
     if errores:
         for error in errores:
             flash(error, "error")

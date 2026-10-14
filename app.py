@@ -11,6 +11,7 @@ Registra TODOS los modulos construidos como blueprints de Flask:
   - Apartamentos (GA7-220501096-AA5-EV03)
   - Ventas (GA7-220501096-AA5-EV03)
   - Pagos (GA7-220501096-AA5-EV03)
+  - API REST /api (GA7-220501096-AA5-EV03)
 
 Este archivo cierra la evidencia GA7-220501096-AA5-EV03 "Diseño y desarrollo de
 servicios web - proyecto" con los 4 módulos finales construidos + Dashboard.
@@ -38,6 +39,7 @@ from routes.proyectos import proyectos_bp
 from routes.apartamentos import apartamentos_bp
 from routes.ventas import ventas_bp
 from routes.pagos import pagos_bp
+from routes.api import api_bp
 
 
 def create_app():
@@ -66,6 +68,15 @@ def create_app():
     app.register_blueprint(apartamentos_bp, url_prefix="/apartamentos")
     app.register_blueprint(ventas_bp, url_prefix="/ventas")
     app.register_blueprint(pagos_bp, url_prefix="/pagos")
+
+    # API REST (respuestas JSON) para consumir los mismos datos desde
+    # otros sistemas o desde Postman. Ver routes/api.py.
+    app.register_blueprint(api_bp, url_prefix="/api")
+
+    # Respuestas JSON en el orden en que se definen los campos y con
+    # tildes legibles (sin convertirlas a \u00e1, etc.).
+    app.json.sort_keys = False
+    app.json.ensure_ascii = False
 
     return app
 
