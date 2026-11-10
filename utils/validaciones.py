@@ -89,7 +89,7 @@ def es_contrasena_valida(valor, minimo=8):
     """Longitud minima. La contraseña en si (texto plano) solo pasa
     por esta funcion antes de ser hasheada -- nunca se guarda tal
     cual en la base de datos (ver models/usuario.py)."""
-    return bool(valor) and len(valor) >= minimo
+    return bool(valor) and len(valor.strip()) >= minimo
 
 
 def es_rol_valido(valor):

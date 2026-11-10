@@ -1,0 +1,4 @@
+# Dependencias SOLO de desarrollo (no se necesitan para ejecutar ARKHE).
+# pytest: framework de pruebas unitarias (GA9-220501096-AA1-EV01).
+# Instalar con:  pip install -r requirements-dev.txt
+pytest
