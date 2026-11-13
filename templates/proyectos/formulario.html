@@ -10,6 +10,7 @@
     <form method="POST"
           action="{{ url_for('proyectos.crear_proyecto') if accion == 'crear' else url_for('proyectos.actualizar_proyecto', id=proyecto.id_proyecto) }}"
           class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group">
         <label for="nombre_proyecto">Nombre del proyecto *</label>

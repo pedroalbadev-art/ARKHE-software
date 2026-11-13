@@ -23,7 +23,7 @@ Las plantillas se piden con el prefijo "proyectos/" (sin template_folder
 propio) para que no se confundan con las de otros modulos.
 """
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.apartamento import Apartamento  # noqa: F401 (registra proyecto.apartamentos)
@@ -145,9 +145,10 @@ def crear_proyecto():
         db.session.commit()
         flash(f"Proyecto '{datos['nombre_proyecto']}' creado correctamente.", "exito")
         return redirect(url_for("proyectos.listar_proyectos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al crear proyecto: {e}", "error")
+        current_app.logger.exception("Error al crear proyecto")
+        flash("Error al crear proyecto. Intente de nuevo o avise al administrador.", "error")
         return _formulario("crear")
 
 
@@ -181,9 +182,10 @@ def actualizar_proyecto(id):
         db.session.commit()
         flash(f"Proyecto '{proyecto.nombre_proyecto}' actualizado correctamente.", "exito")
         return redirect(url_for("proyectos.listar_proyectos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar proyecto: {e}", "error")
+        current_app.logger.exception("Error al actualizar proyecto")
+        flash("Error al actualizar proyecto. Intente de nuevo o avise al administrador.", "error")
         return _formulario("editar", proyecto)
 
 
@@ -201,7 +203,8 @@ def eliminar_proyecto(id):
             db.session.delete(proyecto)
             db.session.commit()
             flash(f"Proyecto '{nombre}' eliminado correctamente.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar proyecto: {e}", "error")
+            current_app.logger.exception("Error al eliminar proyecto")
+            flash("Error al eliminar proyecto. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("proyectos.listar_proyectos"))

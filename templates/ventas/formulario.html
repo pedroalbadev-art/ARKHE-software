@@ -18,6 +18,7 @@
     <form method="POST"
           action="{{ url_for('ventas.crear_venta') if accion == 'crear' else url_for('ventas.actualizar_venta', id=venta.id_venta) }}"
           class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group">
         <label for="id_cliente">Cliente comprador *</label>

@@ -62,6 +62,7 @@
                 {% if puede('proyectos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('proyectos.eliminar_proyecto', id=proyecto.id_proyecto) }}"
                       onsubmit="return confirm('¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
                 {% endif %}

@@ -21,7 +21,7 @@ Validaciones en el backend:
 
 from datetime import date
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.pago import METODOS_PAGO, Pago
@@ -116,9 +116,10 @@ def crear_pago():
         db.session.commit()
         flash(f"Pago de {formato_pesos(datos['monto'])} registrado para la venta #{datos['id_venta']}.", "exito")
         return redirect(url_for("pagos.listar_pagos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al registrar el pago: {e}", "error")
+        current_app.logger.exception("Error al registrar el pago")
+        flash("Error al registrar el pago. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "crear")
 
 
@@ -158,9 +159,10 @@ def actualizar_pago(id):
         db.session.commit()
         flash(f"Pago #{pago.id_pago} actualizado correctamente.", "exito")
         return redirect(url_for("pagos.listar_pagos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar el pago: {e}", "error")
+        current_app.logger.exception("Error al actualizar el pago")
+        flash("Error al actualizar el pago. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "editar", pago)
 
 
@@ -175,7 +177,8 @@ def eliminar_pago(id):
             db.session.delete(pago)
             db.session.commit()
             flash(f"Pago #{id} eliminado correctamente.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar el pago: {e}", "error")
+            current_app.logger.exception("Error al eliminar el pago")
+            flash("Error al eliminar el pago. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("pagos.listar_pagos"))

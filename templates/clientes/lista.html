@@ -40,6 +40,7 @@
                 {% if puede('clientes', 'eliminar') %}
                 <form action="{{ url_for('clientes.eliminar_cliente', id_cliente=cliente.id_cliente) }}" method="post"
                       onsubmit="return confirm('¿Eliminar a {{ cliente.nombre_completo }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
                 {% endif %}
@@ -66,6 +67,7 @@
         <button type="button" class="modal-cerrar" onclick="cerrarModal('modalNuevo')" aria-label="Cerrar">&times;</button>
       </div>
       <form method="post" action="{{ url_for('clientes.crear_cliente') }}" class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
           <label>Nombre</label>
           <input type="text" name="nombre" placeholder="Ej: Maria" required

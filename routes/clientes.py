@@ -35,6 +35,7 @@ from utils.validaciones import (
     es_documento_valido,
     es_telefono_valido,
     es_texto_valido,
+    validar_lengitud,
 )
 
 # No se personaliza template_folder: se usa la carpeta de plantillas
@@ -53,14 +54,24 @@ def _validar_datos_cliente(form):
     lista de mensajes de error (vacia si todo es valido)."""
     errores = []
 
+    # Las longitudes maximas son las de las columnas de la tabla
+    # (nombre y apellido VARCHAR(100), correo VARCHAR(150)). Se validan
+    # aqui para responder con un mensaje claro en vez de un error de
+    # base de datos.
     if not es_texto_valido(form.get("nombre", "")):
         errores.append("El nombre solo puede contener letras y espacios.")
+    elif not validar_lengitud(form.get("nombre", ""), max_len=100):
+        errores.append("El nombre no puede exceder 100 caracteres.")
     if not es_texto_valido(form.get("apellido", "")):
         errores.append("El apellido solo puede contener letras y espacios.")
+    elif not validar_lengitud(form.get("apellido", ""), max_len=100):
+        errores.append("El apellido no puede exceder 100 caracteres.")
     if not es_documento_valido(form.get("documento", "")):
         errores.append("El documento debe contener solo numeros (6 a 15 digitos).")
     if not es_correo_valido(form.get("correo", "")):
         errores.append("El correo electronico no tiene un formato valido.")
+    elif not validar_lengitud(form.get("correo", ""), max_len=150):
+        errores.append("El correo electronico no puede exceder 150 caracteres.")
     if not es_telefono_valido(form.get("telefono", "")):
         errores.append("El telefono debe contener solo numeros (7 a 15 digitos).")
 
@@ -164,6 +175,12 @@ def eliminar_cliente(id_cliente):
     que cambian datos a traves de enlaces simples.
     """
     cliente = Cliente.query.get_or_404(id_cliente)
+    # Misma regla que la API: un cliente con proyectos o ventas no se
+    # elimina. Sin esta comprobacion, la llave foranea de MySQL
+    # rechazaria el borrado y la pagina terminaria en un error 500.
+    if cliente.proyectos or cliente.ventas:
+        flash("No se puede eliminar: el cliente tiene proyectos o ventas asociados.", "error")
+        return redirect(url_for("clientes.listar_clientes"))
     nombre_eliminado = cliente.nombre_completo
     db.session.delete(cliente)
     db.session.commit()

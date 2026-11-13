@@ -8,7 +8,10 @@
 #   MySQL desde Python puro.
 # python-dotenv: carga las credenciales del archivo .env (ya usado
 #   desde la configuración inicial del entorno).
+# Flask-WTF: extension de Flask de la que se usa solo CSRFProtect (el
+#   token oculto que protege los formularios contra ataques CSRF).
 Flask
 Flask-SQLAlchemy
+Flask-WTF
 PyMySQL
 python-dotenv

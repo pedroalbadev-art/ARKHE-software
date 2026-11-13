@@ -29,7 +29,7 @@ nombres lista.html/formulario.html no se mezclen entre modulos.
 
 from decimal import Decimal
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.apartamento import ESTADOS_EDITABLES, Apartamento
@@ -138,9 +138,10 @@ def crear_apartamento():
         db.session.commit()
         flash(f"Apartamento '{datos['numero_apartamento']}' creado correctamente.", "exito")
         return redirect(url_for("apartamentos.listar_apartamentos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al crear el apartamento: {e}", "error")
+        current_app.logger.exception("Error al crear el apartamento")
+        flash("Error al crear el apartamento. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "crear")
 
 
@@ -183,9 +184,10 @@ def actualizar_apartamento(id):
         db.session.commit()
         flash(f"Apartamento '{apartamento.numero_apartamento}' actualizado correctamente.", "exito")
         return redirect(url_for("apartamentos.listar_apartamentos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar el apartamento: {e}", "error")
+        current_app.logger.exception("Error al actualizar el apartamento")
+        flash("Error al actualizar el apartamento. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "editar", apartamento)
 
 
@@ -203,7 +205,8 @@ def eliminar_apartamento(id):
             db.session.delete(apartamento)
             db.session.commit()
             flash(f"Apartamento '{numero}' eliminado correctamente.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar el apartamento: {e}", "error")
+            current_app.logger.exception("Error al eliminar el apartamento")
+            flash("Error al eliminar el apartamento. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("apartamentos.listar_apartamentos"))

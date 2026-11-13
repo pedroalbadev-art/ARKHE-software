@@ -28,7 +28,8 @@ Los módulos están organizados por carpetas:
   - utils/         : Funciones utilitarias compartidas
 """
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template
+from flask_wtf.csrf import CSRFError, CSRFProtect
 
 from config import Config
 from models import db
@@ -41,7 +42,11 @@ from routes.ventas import ventas_bp
 from routes.pagos import pagos_bp
 from routes.api import api_bp
 from routes.auth import auth_bp
-from utils.seguridad import exigir_sesion, puede, puede_cambiar_estado, usuario_actual
+from utils.seguridad import es_api, exigir_sesion, puede, puede_cambiar_estado, usuario_actual
+
+# Extension de proteccion CSRF (Flask-WTF). Se crea aqui y se conecta a
+# la app dentro de create_app(), igual que `db`.
+csrf = CSRFProtect()
 
 
 def create_app(clase_config=Config):
@@ -82,20 +87,75 @@ def create_app(clase_config=Config):
     # es solo comodidad: quien protege de verdad es rol_requerido.
     @app.context_processor
     def _datos_de_sesion():
-        usuario = usuario_actual()
+        try:
+            usuario = usuario_actual()
+        except Exception:
+            # Si la base de datos no responde, la pagina de error debe
+            # poder mostrarse igual (sin datos de usuario).
+            usuario = None
         return {
             "usuario_actual": usuario,
             "puede": lambda modulo, accion: puede(usuario, modulo, accion),
             "puede_cambiar_estado": lambda cuenta: puede_cambiar_estado(usuario, cuenta),
         }
 
-    # 403: hay sesion, pero el rol no tiene permiso (lo lanza
-    # rol_requerido con abort(403)). JSON para la API, pagina para el resto.
+    # Proteccion CSRF: todo POST de un formulario debe traer el token
+    # oculto csrf_token (ver las plantillas). Se activa aqui para TODA la
+    # app, asi un formulario nuevo queda protegido sin recordar nada mas.
+    csrf.init_app(app)
+
+    # Cabeceras de seguridad en todas las respuestas:
+    #  - X-Frame-Options: la app no se puede incrustar en un <iframe> de
+    #    otro sitio (evita que la "disfracen" para robar clics).
+    #  - X-Content-Type-Options: el navegador no adivina el tipo de un
+    #    archivo; respeta el que declara el servidor.
+    #  - Referrer-Policy: no se envia la direccion interna a otros sitios.
+    @app.after_request
+    def _cabeceras_de_seguridad(respuesta):
+        respuesta.headers.setdefault("X-Frame-Options", "DENY")
+        respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
+        respuesta.headers.setdefault("Referrer-Policy", "same-origin")
+        return respuesta
+
+    # ---- Paginas de error ----
+    # Cada error responde JSON si la peticion es de la API y una pagina
+    # con el estilo del sistema si es de una pantalla. Ninguna muestra
+    # detalles tecnicos: el detalle queda en el registro del servidor.
+    def _error(codigo, titulo, mensaje, mensaje_api=None):
+        if es_api():
+            return jsonify(error=mensaje_api or mensaje), codigo
+        return render_template("errores/error.html", codigo=codigo,
+                               titulo=titulo, mensaje=mensaje), codigo
+
+    # 403: hay sesion, pero el rol no tiene permiso (rol_requerido).
     @app.errorhandler(403)
-    def _sin_permiso(_error):
-        if request.blueprint == "api":
-            return jsonify(error="Su rol no tiene permiso para realizar esta accion."), 403
-        return render_template("errores/403.html"), 403
+    def _sin_permiso(_error_recibido):
+        return _error(403, "Acceso no permitido",
+                      "Su rol no tiene permiso para realizar esta acción.",
+                      "Su rol no tiene permiso para realizar esta accion.")
+
+    @app.errorhandler(404)
+    def _no_encontrado(_error_recibido):
+        return _error(404, "Página no encontrada",
+                      "La página o el registro que busca no existe o fue eliminado.",
+                      "La ruta o el registro solicitado no existe.")
+
+    # 400 por token CSRF ausente, vencido o que no coincide.
+    @app.errorhandler(CSRFError)
+    def _csrf_invalido(_error_recibido):
+        return _error(400, "Formulario vencido",
+                      "El formulario venció o no es válido. Vuelva a la página "
+                      "anterior, recárguela e intente de nuevo.")
+
+    # 500: cualquier error no previsto. Se deshace la transaccion a
+    # medias y se registra el detalle; al usuario solo se le avisa.
+    @app.errorhandler(500)
+    def _error_interno(_error_recibido):
+        db.session.rollback()
+        return _error(500, "Error inesperado",
+                      "Ocurrió un error inesperado. Intente de nuevo; si el "
+                      "problema continúa, avise al administrador.",
+                      "Error interno del servidor.")
 
     # Registra los blueprints (grupos de rutas) de cada modulo.
     # Login y logout (/login, /logout) y el dashboard se registran sin
@@ -114,6 +174,13 @@ def create_app(clase_config=Config):
     # API REST (respuestas JSON) para consumir los mismos datos desde
     # otros sistemas o desde Postman. Ver routes/api.py.
     app.register_blueprint(api_bp, url_prefix="/api")
+
+    # La API queda exenta del token CSRF: no usa formularios HTML. Solo
+    # acepta cuerpos JSON (un formulario de otro sitio no puede
+    # enviarlos) y la cookie de sesion va con SameSite=Lax, asi que el
+    # navegador no la adjunta en peticiones POST/PUT/DELETE que vengan
+    # de otro sitio. Sigue exigiendo sesion y rol.
+    csrf.exempt(api_bp)
 
     # Respuestas JSON en el orden en que se definen los campos y con
     # tildes legibles (sin convertirlas a \u00e1, etc.).

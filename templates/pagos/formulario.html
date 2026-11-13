@@ -16,6 +16,7 @@
     <form method="POST"
           action="{{ url_for('pagos.crear_pago') if accion == 'crear' else url_for('pagos.actualizar_pago', id=pago.id_pago) }}"
           class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group full">
         <label for="id_venta">Venta *</label>

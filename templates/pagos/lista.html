@@ -65,6 +65,7 @@
                 {% if puede('pagos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('pagos.eliminar_pago', id=pago.id_pago) }}"
                       onsubmit="return confirm('¿Eliminar el pago #{{ pago.id_pago }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
                 {% endif %}

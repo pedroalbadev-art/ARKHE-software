@@ -71,6 +71,7 @@
                 {% if not apto.venta and puede('apartamentos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('apartamentos.eliminar_apartamento', id=apto.id_apartamento) }}"
                       onsubmit="return confirm('¿Eliminar el apartamento {{ apto.numero_apartamento }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
                 {% endif %}

@@ -7,6 +7,7 @@
   <div class="tarjeta form-card">
     <h3>{{ usuario.nombre_completo }}</h3>
     <form method="post" action="{{ url_for('usuarios.actualizar_usuario', id_usuario=usuario.id_usuario) }}" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
         <label>Nombre</label>
         <input type="text" name="nombre" value="{{ usuario.nombre }}" required

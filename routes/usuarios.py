@@ -38,6 +38,7 @@ from utils.validaciones import (
     es_estado_valido,
     es_rol_valido,
     es_texto_valido,
+    validar_lengitud,
 )
 
 # No se personaliza template_folder (ver nota en routes/clientes.py):
@@ -57,12 +58,20 @@ def _validar_datos_usuario(form, requiere_contrasena):
     """
     errores = []
 
+    # Longitudes maximas de las columnas (nombre y apellido VARCHAR(100),
+    # correo VARCHAR(150)), igual que en routes/clientes.py.
     if not es_texto_valido(form.get("nombre", "")):
         errores.append("El nombre solo puede contener letras y espacios.")
+    elif not validar_lengitud(form.get("nombre", ""), max_len=100):
+        errores.append("El nombre no puede exceder 100 caracteres.")
     if not es_texto_valido(form.get("apellido", "")):
         errores.append("El apellido solo puede contener letras y espacios.")
+    elif not validar_lengitud(form.get("apellido", ""), max_len=100):
+        errores.append("El apellido no puede exceder 100 caracteres.")
     if not es_correo_valido(form.get("correo", "")):
         errores.append("El correo electronico no tiene un formato valido.")
+    elif not validar_lengitud(form.get("correo", ""), max_len=150):
+        errores.append("El correo electronico no puede exceder 150 caracteres.")
 
     contrasena = form.get("contrasena", "")
     if requiere_contrasena or contrasena:
@@ -220,6 +229,10 @@ def eliminar_usuario(id_usuario):
     """
     usuario = Usuario.query.get_or_404(id_usuario)
     bloqueo = motivo_bloqueo_usuario(usuario, usuario_actual(), eliminar=True)
+    # Misma regla que la API: un usuario que gestiona proyectos no se
+    # elimina (la llave foranea lo impediria con un error 500).
+    if not bloqueo and usuario.proyectos:
+        bloqueo = "No se puede eliminar: el usuario gestiona proyectos. Puede desactivarlo."
     if bloqueo:
         flash(bloqueo, "error")
         return redirect(url_for("usuarios.listar_usuarios"))

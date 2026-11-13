@@ -25,6 +25,7 @@
     {% endwith %}
 
     <form method="post" action="{{ url_for('auth.login') }}" class="login-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ destino }}">
       <div class="form-group">
         <label for="correo">Correo electrónico</label>

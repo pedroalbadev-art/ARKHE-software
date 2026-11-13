@@ -27,7 +27,7 @@ Validaciones en el backend:
 
 from datetime import date
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.apartamento import Apartamento
@@ -124,9 +124,10 @@ def crear_venta():
         db.session.commit()  # venta + cambio de estado en una sola transaccion
         flash(f"Venta del apartamento '{apartamento.numero_apartamento}' registrada correctamente.", "exito")
         return redirect(url_for("ventas.listar_ventas"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al registrar la venta: {e}", "error")
+        current_app.logger.exception("Error al registrar la venta")
+        flash("Error al registrar la venta. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "crear")
 
 
@@ -170,9 +171,10 @@ def actualizar_venta(id):
         db.session.commit()
         flash(f"Venta #{venta.id_venta} actualizada correctamente.", "exito")
         return redirect(url_for("ventas.listar_ventas"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar la venta: {e}", "error")
+        current_app.logger.exception("Error al actualizar la venta")
+        flash("Error al actualizar la venta. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "editar", venta)
 
 
@@ -190,7 +192,8 @@ def eliminar_venta(id):
             db.session.delete(venta)
             db.session.commit()
             flash(f"Venta #{id} eliminada. El apartamento volvio a estar disponible.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar la venta: {e}", "error")
+            current_app.logger.exception("Error al eliminar la venta")
+            flash("Error al eliminar la venta. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("ventas.listar_ventas"))

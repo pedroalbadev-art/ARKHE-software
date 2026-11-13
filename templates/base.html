@@ -57,6 +57,7 @@
             <span class="sesion-rol">{{ usuario_actual.rol }}</span>
           </div>
           <form method="post" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-secondary">Cerrar sesión</button>
           </form>
         </div>

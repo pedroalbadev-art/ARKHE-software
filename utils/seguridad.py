@@ -101,6 +101,13 @@ def usuario_actual():
     return g.usuario_actual
 
 
+def es_api():
+    """True si la peticion va dirigida a la API REST (/api). Se mira la
+    direccion y no el blueprint para que tambien valga con rutas de la
+    API que no existen (/api/loquesea), que deben responder JSON."""
+    return request.path == "/api" or request.path.startswith("/api/")
+
+
 def _ir_al_login():
     """Respuesta cuando NO hay sesion (no se sabe quien hace la peticion).
 
@@ -109,7 +116,7 @@ def _ir_al_login():
     - API: responde 401 en JSON; un programa (o Postman) no puede usar
       una pantalla de login, necesita un codigo que pueda interpretar.
     """
-    if request.blueprint == "api":
+    if es_api():
         return jsonify(error="Debe iniciar sesion (POST /api/login)."), 401
     destino = request.full_path.rstrip("?") if request.method == "GET" else None
     return redirect(url_for("auth.login", next=destino))

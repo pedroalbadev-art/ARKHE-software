@@ -42,6 +42,14 @@ class ConfigPruebas(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SECRET_KEY = "clave-solo-para-pruebas"
+    # El token CSRF se desactiva en las pruebas generales para no tener
+    # que copiarlo en cada POST. tests/test_seguridad.py lo vuelve a
+    # activar (ConfigPruebasConCsrf) para probar la proteccion misma.
+    WTF_CSRF_ENABLED = False
+
+
+class ConfigPruebasConCsrf(ConfigPruebas):
+    WTF_CSRF_ENABLED = True
 
 
 # Usuarios de prueba que crea la fixture `datos` (uno por rol, misma clave).
