@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Acceso no permitido{% endblock %}
+{% block titulo_pagina %}Acceso no permitido{% endblock %}
+
+{% block content %}
+  <div class="tarjeta vacio">
+    <p><strong>Su rol ({{ usuario_actual.rol }}) no tiene permiso para realizar esta acción.</strong></p>
+    <p>Si necesita este acceso, solicítelo al administrador del sistema.</p>
+    <a href="{{ url_for('dashboard.inicio') }}" class="btn btn-primary">Volver al inicio</a>
+  </div>
+{% endblock %}

@@ -35,7 +35,8 @@
         <span>ARKHE</span>
       </a>
       <nav class="sidebar-menu">
-        {% for clave, endpoint, texto, icono in menu %}
+        {# Solo se muestran los modulos que el rol puede consultar. #}
+        {% for clave, endpoint, texto, icono in menu if puede(clave, 'ver') %}
         <a href="{{ url_for(endpoint) }}" class="sidebar-item {{ 'activo' if seccion == clave }}">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ icono }}"/></svg>
           <span>{{ texto }}</span>

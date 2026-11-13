@@ -25,6 +25,7 @@ from models.proyecto import Proyecto
 from models.usuario import Usuario
 from models.venta import Venta
 from utils.formato import formato_pesos
+from utils.seguridad import rol_requerido
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -57,6 +58,7 @@ def _ventas_ultimos_meses(ventas, cantidad=6):
 
 
 @dashboard_bp.route("/")
+@rol_requerido("dashboard", "ver")
 def inicio():
     ventas = Venta.query.all()
 

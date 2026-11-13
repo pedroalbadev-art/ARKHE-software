@@ -27,6 +27,7 @@ from models import db
 from models.pago import METODOS_PAGO, Pago
 from models.venta import Venta
 from utils.formato import formato_pesos
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura
 
 pagos_bp = Blueprint("pagos", __name__)
@@ -82,6 +83,7 @@ def _formulario(datos, accion, pago=None):
 
 
 @pagos_bp.route("/", methods=["GET"])
+@rol_requerido("pagos", "ver")
 def listar_pagos():
     consulta = Pago.query
     venta = None
@@ -94,12 +96,14 @@ def listar_pagos():
 
 
 @pagos_bp.route("/nuevo", methods=["GET"])
+@rol_requerido("pagos", "editar")
 def formulario_nuevo():
     datos = {"id_venta": request.args.get("venta", ""), "fecha_pago": date.today().isoformat()}
     return _formulario(datos, "crear")
 
 
 @pagos_bp.route("/crear", methods=["POST"])
+@rol_requerido("pagos", "editar")
 def crear_pago():
     errores, datos = validar_datos_pago(request.form)
     if errores:
@@ -119,6 +123,7 @@ def crear_pago():
 
 
 @pagos_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("pagos", "editar")
 def formulario_editar(id):
     pago = db.session.get(Pago, id)
     if not pago:
@@ -134,6 +139,7 @@ def formulario_editar(id):
 
 
 @pagos_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("pagos", "editar")
 def actualizar_pago(id):
     pago = db.session.get(Pago, id)
     if not pago:
@@ -159,6 +165,7 @@ def actualizar_pago(id):
 
 
 @pagos_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("pagos", "eliminar")
 def eliminar_pago(id):
     pago = db.session.get(Pago, id)
     if not pago:

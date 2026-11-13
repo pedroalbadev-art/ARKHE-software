@@ -28,6 +28,7 @@ from utils.seguridad import usuario_actual
 auth_bp = Blueprint("auth", __name__)
 
 MENSAJE_CREDENCIALES = "Correo o contraseña incorrectos."
+MENSAJE_INACTIVO = "Su cuenta está inactiva. Comuníquese con el administrador."
 
 # Hash de relleno: cuando el correo no existe se compara igual contra
 # este hash, para que la respuesta tarde lo mismo que con un correo real
@@ -44,6 +45,36 @@ def _destino_seguro(destino):
     return url_for("dashboard.inicio")
 
 
+def autenticar(correo, contrasena):
+    """Verifica las credenciales y, si son correctas, abre la sesion.
+    La usan la pantalla de login y POST /api/login, para que las reglas
+    sean las mismas en ambos. Devuelve (usuario, None) si entro, o
+    (None, mensaje_de_error) si no."""
+    correo = (correo or "").strip()
+    # La contrasena no se recorta: se compara tal como se escribio.
+    contrasena = contrasena or ""
+    usuario = Usuario.query.filter(db.func.lower(Usuario.correo) == correo.lower()).first()
+
+    if usuario is None:
+        check_password_hash(_HASH_DE_RELLENO, contrasena)
+        return None, MENSAJE_CREDENCIALES
+    if not usuario.verificar_contrasena(contrasena):
+        return None, MENSAJE_CREDENCIALES
+    if usuario.estado != "activo":
+        # Solo se llega aqui con la contrasena correcta, asi que el
+        # mensaje no revela nada a quien no conoce la cuenta.
+        return None, MENSAJE_INACTIVO
+
+    # session.clear() descarta cualquier dato de una sesion anterior
+    # antes de abrir la nueva.
+    session.clear()
+    session["id_usuario"] = usuario.id_usuario
+    # permanent=True hace que la sesion caduque segun
+    # PERMANENT_SESSION_LIFETIME (config.py) y no dure para siempre.
+    session.permanent = True
+    return usuario, None
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if usuario_actual() is not None:
@@ -53,28 +84,10 @@ def login():
     correo = request.form.get("correo", "").strip()
 
     if request.method == "POST":
-        # La contrasena no se recorta: se compara tal como se escribio.
-        contrasena = request.form.get("contrasena", "")
-        usuario = Usuario.query.filter(db.func.lower(Usuario.correo) == correo.lower()).first()
-
-        if usuario is None:
-            check_password_hash(_HASH_DE_RELLENO, contrasena)
-            flash(MENSAJE_CREDENCIALES, "error")
-        elif not usuario.verificar_contrasena(contrasena):
-            flash(MENSAJE_CREDENCIALES, "error")
-        elif usuario.estado != "activo":
-            # Solo se llega aqui con la contrasena correcta, asi que el
-            # mensaje no revela nada a quien no conoce la cuenta.
-            flash("Su cuenta está inactiva. Comuníquese con el administrador.", "error")
-        else:
-            # session.clear() descarta cualquier dato de una sesion
-            # anterior antes de abrir la nueva.
-            session.clear()
-            session["id_usuario"] = usuario.id_usuario
-            # permanent=True hace que la sesion caduque segun
-            # PERMANENT_SESSION_LIFETIME (config.py) y no dure para siempre.
-            session.permanent = True
+        usuario, error = autenticar(correo, request.form.get("contrasena", ""))
+        if usuario is not None:
             return redirect(_destino_seguro(destino))
+        flash(error, "error")
 
     return render_template("auth/login.html", correo=correo, destino=destino)
 

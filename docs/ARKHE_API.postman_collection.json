@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "ARKHE - API REST (GA7-220501096-AA5-EV03)",
-    "description": "Pruebas de la API REST de ARKHE. Ejecutar en orden (o con el Collection Runner): cada POST guarda el id creado en una variable de la coleccion y las peticiones siguientes lo usan. La carpeta 8 elimina todo lo que se creo. Requiere el servidor corriendo (python app.py).",
+    "description": "Pruebas de la API REST de ARKHE (36 peticiones). La API exige sesion: la primera peticion (POST /api/login) inicia sesion y Postman guarda la cookie para las demas. Antes de ejecutar, escriba el correo y la contrasena de un usuario Administrador activo en las variables de la coleccion correo_login y contrasena_login, SOLO en la columna 'Current value' (ese valor no se exporta ni se sube al repositorio). Ejecutar en orden (o con el Collection Runner): cada POST guarda el id creado en una variable de la coleccion y las peticiones siguientes lo usan. La carpeta 8 elimina todo lo que se creo. Requiere el servidor corriendo (python app.py).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -22,6 +22,14 @@
     {
       "key": "base_url",
       "value": "http://127.0.0.1:5000"
+    },
+    {
+      "key": "correo_login",
+      "value": ""
+    },
+    {
+      "key": "contrasena_login",
+      "value": ""
     },
     {
       "key": "hoy",
@@ -56,6 +64,49 @@
     {
       "name": "0. Indice",
       "item": [
+        {
+          "name": "Iniciar sesion (obligatorio: va primero)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200 (si da 401, revise las variables correo_login y contrasena_login de la coleccion)\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"La respuesta no incluye la contrasena\", function () { pm.expect(pm.response.text()).to.not.include(\"contrasena\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_login}}\",\n  \"contrasena\": \"{{contrasena_login}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
         {
           "name": "Indice de servicios",
           "event": [

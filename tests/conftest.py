@@ -25,6 +25,7 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from werkzeug.security import generate_password_hash
 
 from app import create_app
 from config import Config
@@ -41,6 +42,27 @@ class ConfigPruebas(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SECRET_KEY = "clave-solo-para-pruebas"
+
+
+# Usuarios de prueba que crea la fixture `datos` (uno por rol, misma clave).
+CLAVE = "ClaveSegura1"
+# El hash se calcula una sola vez (es lento a proposito, para resistir
+# ataques) y se reutiliza en los tres usuarios de cada prueba.
+HASH_CLAVE = generate_password_hash(CLAVE)
+CORREOS = {
+    "Administrador": "luis@ejemplo.com",
+    "Vendedor": "vera@ejemplo.com",
+    "Gerente": "gabo@ejemplo.com",
+}
+
+
+def entrar_como(api, rol):
+    """Inicia sesion en el cliente de pruebas con el usuario de ese rol
+    (cierra antes cualquier sesion abierta)."""
+    api.post("/logout")
+    respuesta = api.post("/api/login", json={"correo": CORREOS[rol], "contrasena": CLAVE})
+    assert respuesta.status_code == 200, respuesta.get_json()
+    return api
 
 
 @event.listens_for(Engine, "connect")
@@ -83,8 +105,14 @@ def datos(app):
                           correo="ana@ejemplo.com", telefono="3001234567")
         usuario = Usuario(nombre="Luis", apellido="Mora", correo="luis@ejemplo.com",
                           rol="Administrador", estado="activo")
-        usuario.establecer_contrasena("ClaveSegura1")
-        db.session.add_all([cliente, usuario])
+        # Un usuario mas por cada rol, para las pruebas de permisos.
+        vendedor = Usuario(nombre="Vera", apellido="Soto", correo=CORREOS["Vendedor"],
+                           rol="Vendedor", estado="activo")
+        gerente = Usuario(nombre="Gabo", apellido="Paz", correo=CORREOS["Gerente"],
+                          rol="Gerente", estado="activo")
+        for persona in (usuario, vendedor, gerente):
+            persona.contrasena = HASH_CLAVE
+        db.session.add_all([cliente, usuario, vendedor, gerente])
         db.session.flush()  # asigna los ID sin cerrar la transaccion
 
         proyecto = Proyecto(id_cliente=cliente.id_cliente, id_usuario=usuario.id_usuario,
@@ -102,7 +130,9 @@ def datos(app):
         hoy = date.today()
         return {
             "id_cliente": cliente.id_cliente,
-            "id_usuario": usuario.id_usuario,
+            "id_usuario": usuario.id_usuario,       # el Administrador
+            "id_vendedor": vendedor.id_usuario,
+            "id_gerente": gerente.id_usuario,
             "id_proyecto": proyecto.id_proyecto,
             "id_apartamento": apartamento.id_apartamento,
             "fecha_venta": (hoy - timedelta(days=10)).isoformat(),

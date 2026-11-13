@@ -5,7 +5,9 @@
 
 {% block content %}
   <div class="herramientas">
+    {% if puede('clientes', 'editar') %}
     <button type="button" class="btn btn-primary" onclick="abrirModal('modalNuevo')">+ Nuevo Cliente</button>
+    {% endif %}
     <input type="search" id="buscador" placeholder="Buscar cliente por nombre, documento, correo o telefono...">
   </div>
 
@@ -32,11 +34,15 @@
             <td class="suave">{{ cliente.telefono }}</td>
             <td>
               <div class="acciones" style="justify-content:center;">
+                {% if puede('clientes', 'editar') %}
                 <a class="btn btn-sm accion-editar" href="{{ url_for('clientes.editar_cliente', id_cliente=cliente.id_cliente) }}">Editar</a>
+                {% endif %}
+                {% if puede('clientes', 'eliminar') %}
                 <form action="{{ url_for('clientes.eliminar_cliente', id_cliente=cliente.id_cliente) }}" method="post"
                       onsubmit="return confirm('¿Eliminar a {{ cliente.nombre_completo }}?');">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -51,6 +57,7 @@
     </div>
   </div>
 
+  {% if puede('clientes', 'editar') %}
   <!-- Modal "Nuevo Cliente" -->
   <div class="modal-overlay" id="modalNuevo">
     <div class="modal-card">
@@ -87,4 +94,5 @@
       </form>
     </div>
   </div>
+  {% endif %}
 {% endblock %}

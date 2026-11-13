@@ -28,7 +28,7 @@ Los módulos están organizados por carpetas:
   - utils/         : Funciones utilitarias compartidas
 """
 
-from flask import Flask
+from flask import Flask, jsonify, render_template, request
 
 from config import Config
 from models import db
@@ -41,7 +41,7 @@ from routes.ventas import ventas_bp
 from routes.pagos import pagos_bp
 from routes.api import api_bp
 from routes.auth import auth_bp
-from utils.seguridad import exigir_sesion, usuario_actual
+from utils.seguridad import exigir_sesion, puede, puede_cambiar_estado, usuario_actual
 
 
 def create_app(clase_config=Config):
@@ -77,9 +77,25 @@ def create_app(clase_config=Config):
 
     # Deja disponible {{ usuario_actual }} en todas las plantillas (el
     # encabezado muestra el nombre, el rol y el boton "Cerrar sesion").
+    # Tambien deja {{ puede('ventas', 'eliminar') }} para que las
+    # plantillas oculten los botones que el rol no puede usar. Ocultar
+    # es solo comodidad: quien protege de verdad es rol_requerido.
     @app.context_processor
     def _datos_de_sesion():
-        return {"usuario_actual": usuario_actual()}
+        usuario = usuario_actual()
+        return {
+            "usuario_actual": usuario,
+            "puede": lambda modulo, accion: puede(usuario, modulo, accion),
+            "puede_cambiar_estado": lambda cuenta: puede_cambiar_estado(usuario, cuenta),
+        }
+
+    # 403: hay sesion, pero el rol no tiene permiso (lo lanza
+    # rol_requerido con abort(403)). JSON para la API, pagina para el resto.
+    @app.errorhandler(403)
+    def _sin_permiso(_error):
+        if request.blueprint == "api":
+            return jsonify(error="Su rol no tiene permiso para realizar esta accion."), 403
+        return render_template("errores/403.html"), 403
 
     # Registra los blueprints (grupos de rutas) de cada modulo.
     # Login y logout (/login, /logout) y el dashboard se registran sin

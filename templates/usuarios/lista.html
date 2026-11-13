@@ -15,7 +15,9 @@
       <option value="activo">Activo</option>
       <option value="inactivo">Inactivo</option>
     </select>
+    {% if puede('usuarios', 'editar') %}
     <button type="button" class="btn btn-primary" onclick="abrirModal('modalNuevo')">+ Nuevo Usuario</button>
+    {% endif %}
   </div>
 
   <div class="tarjeta tarjeta-sin-padding">
@@ -41,11 +43,21 @@
             <td class="centro"><span class="badge badge-{{ usuario.estado }}">{{ usuario.estado }}</span></td>
             <td>
               <div class="acciones" style="justify-content:center;">
+                {# Activar / desactivar: el Administrador a cualquiera; el Gerente solo a Vendedores. Nadie a su propia cuenta. #}
+                {% if puede_cambiar_estado(usuario) and usuario.id_usuario != usuario_actual.id_usuario %}
+                <form action="{{ url_for('usuarios.cambiar_estado_usuario', id_usuario=usuario.id_usuario) }}" method="post">
+                  <button type="submit" class="btn btn-sm accion-ver">{{ 'Desactivar' if usuario.estado == 'activo' else 'Activar' }}</button>
+                </form>
+                {% endif %}
+                {% if puede('usuarios', 'editar') %}
                 <a class="btn btn-sm accion-editar" href="{{ url_for('usuarios.editar_usuario', id_usuario=usuario.id_usuario) }}">Editar</a>
+                {% endif %}
+                {% if puede('usuarios', 'eliminar') and usuario.id_usuario != usuario_actual.id_usuario %}
                 <form action="{{ url_for('usuarios.eliminar_usuario', id_usuario=usuario.id_usuario) }}" method="post"
                       onsubmit="return confirm('¿Eliminar a {{ usuario.nombre_completo }}?');">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -60,6 +72,7 @@
     </div>
   </div>
 
+  {% if puede('usuarios', 'editar') %}
   <!-- Modal "Nuevo Usuario" (los usuarios nuevos inician 'activo') -->
   <div class="modal-overlay" id="modalNuevo">
     <div class="modal-card">
@@ -96,4 +109,5 @@
       </form>
     </div>
   </div>
+  {% endif %}
 {% endblock %}

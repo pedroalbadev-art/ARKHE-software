@@ -16,6 +16,7 @@ luis@ejemplo.com / ClaveSegura1.
 import pytest
 
 from models import db
+from models.cliente import Cliente
 from models.usuario import Usuario
 from utils import seguridad
 from utils.seguridad import login_requerido
@@ -58,7 +59,8 @@ def test_au02_sin_sesion_no_se_puede_modificar_nada(app, api, datos):
     assert respuesta.status_code == 302
     assert respuesta.headers["Location"].startswith("/login")
     # El cliente sigue existiendo: la ruta no llego a ejecutarse.
-    assert api.get(f"/api/clientes/{datos['id_cliente']}").status_code == 200
+    with app.app_context():
+        assert db.session.get(Cliente, datos["id_cliente"]) is not None
 
 
 def test_au03_login_y_estaticos_se_abren_sin_sesion(api, datos):

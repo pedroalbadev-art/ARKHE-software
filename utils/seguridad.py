@@ -19,14 +19,65 @@ ni el rol: el rol se lee de la base de datos en cada peticion.
 
 from functools import wraps
 
-from flask import g, redirect, request, session, url_for
+from flask import abort, g, jsonify, redirect, request, session, url_for
 
 from models import db
 from models.usuario import Usuario
 
-# Rutas que se pueden abrir sin sesion: la pantalla de login y los
+# Rutas que se pueden abrir sin sesion: el login (pantalla y API) y los
 # archivos estaticos (CSS y logo, que la propia pantalla de login usa).
-ENDPOINTS_PUBLICOS = {"auth.login", "static"}
+ENDPOINTS_PUBLICOS = {"auth.login", "api.api_login", "static"}
+
+# ---------------------------------------------------------------------
+# Matriz de permisos (aprobada por Pedro el 2026-11-12)
+# ---------------------------------------------------------------------
+# PERMISOS[modulo][accion] = roles que pueden hacer esa accion.
+#   ver       consultar listados y detalles
+#   editar    crear y modificar
+#   eliminar  borrar
+#   estado    activar o desactivar (solo existe en usuarios)
+#
+# Es el UNICO lugar donde se decide que puede hacer cada rol: las rutas
+# (rol_requerido) y las plantillas (puede) consultan esta tabla.
+ADMIN, VENDEDOR, GERENTE = "Administrador", "Vendedor", "Gerente"
+TODOS = {ADMIN, VENDEDOR, GERENTE}
+
+PERMISOS = {
+    "dashboard":    {"ver": TODOS},
+    # Eliminar es SOLO del Administrador en todos los modulos. El
+    # Vendedor crea y edita clientes, ventas y pagos, pero no elimina.
+    "clientes":     {"ver": TODOS, "editar": {ADMIN, VENDEDOR}, "eliminar": {ADMIN}},
+    "proyectos":    {"ver": TODOS, "editar": {ADMIN}, "eliminar": {ADMIN}},
+    "apartamentos": {"ver": TODOS, "editar": {ADMIN}, "eliminar": {ADMIN}},
+    "ventas":       {"ver": TODOS, "editar": {ADMIN, VENDEDOR}, "eliminar": {ADMIN}},
+    "pagos":        {"ver": TODOS, "editar": {ADMIN, VENDEDOR}, "eliminar": {ADMIN}},
+    # El Gerente consulta los usuarios y puede activar o desactivar
+    # cuentas de Vendedor (ver puede_cambiar_estado), pero no crear,
+    # editar ni eliminar usuarios.
+    "usuarios":     {"ver": {ADMIN, GERENTE}, "editar": {ADMIN}, "eliminar": {ADMIN},
+                     "estado": {ADMIN, GERENTE}},
+}
+
+
+def puede(usuario, modulo, accion):
+    """True si el rol del usuario tiene permitida la accion en el modulo.
+    Un modulo o una accion que no esten en la matriz se niegan."""
+    if usuario is None:
+        return False
+    return usuario.rol in PERMISOS.get(modulo, {}).get(accion, set())
+
+
+def puede_cambiar_estado(actual, cuenta):
+    """True si `actual` puede activar o desactivar la cuenta `cuenta`.
+
+    La matriz dice QUE roles pueden cambiar estados; esta funcion agrega
+    SOBRE QUE cuentas: el Administrador sobre cualquiera, el Gerente
+    solo sobre cuentas de Vendedor (no de Administrador ni de otro
+    Gerente). Depende de la cuenta destino, por eso no cabe en la matriz
+    y se comprueba dentro de la ruta, despues de buscar al usuario."""
+    if not puede(actual, "usuarios", "estado"):
+        return False
+    return actual.rol == ADMIN or cuenta.rol == VENDEDOR
 
 
 def usuario_actual():
@@ -51,8 +102,15 @@ def usuario_actual():
 
 
 def _ir_al_login():
-    """Redirige al login recordando la pagina pedida (parametro `next`)
-    para volver a ella despues de iniciar sesion."""
+    """Respuesta cuando NO hay sesion (no se sabe quien hace la peticion).
+
+    - Pantallas: redirige al login recordando la pagina pedida
+      (parametro `next`) para volver a ella despues de iniciar sesion.
+    - API: responde 401 en JSON; un programa (o Postman) no puede usar
+      una pantalla de login, necesita un codigo que pueda interpretar.
+    """
+    if request.blueprint == "api":
+        return jsonify(error="Debe iniciar sesion (POST /api/login)."), 401
     destino = request.full_path.rstrip("?") if request.method == "GET" else None
     return redirect(url_for("auth.login", next=destino))
 
@@ -81,13 +139,46 @@ def exigir_sesion():
     nueva queda protegida aunque nadie le ponga el decorador).
 
     Si devuelve None, la peticion sigue su curso normal; si devuelve una
-    respuesta (la redireccion), Flask la envia y no ejecuta la ruta.
-
-    La API (/api) se protege en la tarea de roles, junto con su propio
-    inicio de sesion y la actualizacion de la coleccion de Postman.
+    respuesta (la redireccion o el 401), Flask la envia y no ejecuta la
+    ruta. Cubre tambien la API (/api).
     """
-    if request.endpoint in ENDPOINTS_PUBLICOS or request.blueprint == "api":
+    if request.endpoint in ENDPOINTS_PUBLICOS:
         return None
     if usuario_actual() is None:
         return _ir_al_login()
     return None
+
+
+def rol_requerido(modulo, accion):
+    """Decorador: la ruta solo se ejecuta si el rol del usuario tiene
+    permitida `accion` en `modulo` segun la matriz PERMISOS.
+
+        @ventas_bp.route("/<int:id>/eliminar", methods=["POST"])
+        @rol_requerido("ventas", "eliminar")
+        def eliminar_venta(id): ...
+
+    Tres resultados posibles:
+      - Sin sesion        -> 401 (API) o redireccion al login (pantallas).
+                             "No se quien eres".
+      - Sin permiso       -> 403. "Se quien eres, pero tu rol no puede".
+      - Con permiso       -> se ejecuta la ruta.
+
+    Es un decorador "con parametros": rol_requerido("ventas", "eliminar")
+    devuelve el decorador de verdad (`decorador`), que es el que envuelve
+    a la ruta. Por eso hay tres funciones, una dentro de otra.
+    """
+    def decorador(vista):
+        @wraps(vista)
+        def envoltura(*args, **kwargs):
+            usuario = usuario_actual()
+            if usuario is None:
+                return _ir_al_login()
+            if not puede(usuario, modulo, accion):
+                abort(403)  # lo convierte en respuesta el manejador de app.py
+            return vista(*args, **kwargs)
+        # Marca que deja ver que permiso exige la ruta. Una prueba
+        # (tests/test_permisos.py) recorre todas las rutas y falla si
+        # alguna no tiene esta marca, es decir, si quedo sin proteger.
+        envoltura.permiso = (modulo, accion)
+        return envoltura
+    return decorador

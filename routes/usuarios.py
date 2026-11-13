@@ -24,11 +24,12 @@ captura explicitamente para mostrar un mensaje claro en vez de dejar
 que Flask muestre un error 500 sin control.
 """
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
 
 from models import db
 from models.usuario import Usuario
+from utils.seguridad import puede_cambiar_estado, rol_requerido, usuario_actual
 from utils.validaciones import (
     ESTADOS_VALIDOS,
     ROLES_VALIDOS,
@@ -78,7 +79,41 @@ def _validar_datos_usuario(form, requiere_contrasena):
     return errores
 
 
+def motivo_bloqueo_usuario(usuario, actual, rol_nuevo=None, estado_nuevo=None, eliminar=False):
+    """Reglas que protegen las cuentas (las usan las pantallas y la API).
+    `usuario` es la cuenta que se va a cambiar y `actual` quien tiene la
+    sesion. Devuelve el motivo por el que NO se permite el cambio, o
+    None si se permite.
+
+      1. Nadie puede eliminar ni desactivar su propia cuenta (se
+         quedaria fuera del sistema en ese mismo instante).
+      2. El sistema nunca puede quedar sin un Administrador activo: no
+         se elimina, desactiva ni cambia de rol al ultimo que queda.
+    """
+    rol_nuevo = usuario.rol if rol_nuevo is None else rol_nuevo
+    estado_nuevo = usuario.estado if estado_nuevo is None else estado_nuevo
+    es_propia = actual is not None and usuario.id_usuario == actual.id_usuario
+
+    if es_propia and eliminar:
+        return "No puede eliminar su propia cuenta."
+    if es_propia and estado_nuevo != "activo":
+        return "No puede desactivar su propia cuenta."
+
+    era_admin_activo = usuario.rol == "Administrador" and usuario.estado == "activo"
+    sigue_admin_activo = not eliminar and rol_nuevo == "Administrador" and estado_nuevo == "activo"
+    if era_admin_activo and not sigue_admin_activo:
+        otros = Usuario.query.filter(
+            Usuario.rol == "Administrador",
+            Usuario.estado == "activo",
+            Usuario.id_usuario != usuario.id_usuario,
+        ).count()
+        if otros == 0:
+            return "No se permite: el sistema quedaria sin ningun Administrador activo."
+    return None
+
+
 @usuarios_bp.route("/")
+@rol_requerido("usuarios", "ver")
 def listar_usuarios():
     """Muestra la tabla con todos los usuarios registrados, ordenados
     alfabeticamente por nombre."""
@@ -89,6 +124,7 @@ def listar_usuarios():
 
 
 @usuarios_bp.route("/nuevo", methods=["POST"])
+@rol_requerido("usuarios", "editar")
 def crear_usuario():
     """Valida y crea un nuevo usuario a partir del formulario modal
     'Nuevo Usuario' (definido en lista.html). Los usuarios nuevos
@@ -121,6 +157,7 @@ def crear_usuario():
 
 
 @usuarios_bp.route("/<int:id_usuario>/editar", methods=["GET"])
+@rol_requerido("usuarios", "editar")
 def editar_usuario(id_usuario):
     """Muestra el formulario de edicion precargado con los datos
     actuales del usuario indicado."""
@@ -131,6 +168,7 @@ def editar_usuario(id_usuario):
 
 
 @usuarios_bp.route("/<int:id_usuario>/editar", methods=["POST"])
+@rol_requerido("usuarios", "editar")
 def actualizar_usuario(id_usuario):
     """Valida y guarda los cambios enviados desde el formulario de
     edicion, incluyendo rol y estado."""
@@ -142,6 +180,14 @@ def actualizar_usuario(id_usuario):
     if errores:
         for error in errores:
             flash(error, "error")
+        return redirect(url_for("usuarios.editar_usuario", id_usuario=id_usuario))
+
+    bloqueo = motivo_bloqueo_usuario(
+        usuario, usuario_actual(),
+        rol_nuevo=request.form["rol"], estado_nuevo=request.form.get("estado", "activo"),
+    )
+    if bloqueo:
+        flash(bloqueo, "error")
         return redirect(url_for("usuarios.editar_usuario", id_usuario=id_usuario))
 
     usuario.nombre = request.form["nombre"].strip()
@@ -164,6 +210,7 @@ def actualizar_usuario(id_usuario):
 
 
 @usuarios_bp.route("/<int:id_usuario>/eliminar", methods=["POST"])
+@rol_requerido("usuarios", "eliminar")
 def eliminar_usuario(id_usuario):
     """Elimina un usuario de la base de datos.
 
@@ -172,8 +219,35 @@ def eliminar_usuario(id_usuario):
     siguiendo el mismo estandar de codificacion que routes/clientes.py.
     """
     usuario = Usuario.query.get_or_404(id_usuario)
+    bloqueo = motivo_bloqueo_usuario(usuario, usuario_actual(), eliminar=True)
+    if bloqueo:
+        flash(bloqueo, "error")
+        return redirect(url_for("usuarios.listar_usuarios"))
     nombre_eliminado = usuario.nombre_completo
     db.session.delete(usuario)
     db.session.commit()
     flash(f"Usuario '{nombre_eliminado}' eliminado.", "info")
+    return redirect(url_for("usuarios.listar_usuarios"))
+
+
+@usuarios_bp.route("/<int:id_usuario>/estado", methods=["POST"])
+@rol_requerido("usuarios", "estado")
+def cambiar_estado_usuario(id_usuario):
+    """Activa un usuario inactivo o desactiva uno activo. No cambia
+    nombre, correo, rol ni contraseña. El Administrador puede hacerlo
+    con cualquier cuenta; el Gerente, solo con cuentas de Vendedor."""
+    usuario = Usuario.query.get_or_404(id_usuario)
+    if not puede_cambiar_estado(usuario_actual(), usuario):
+        abort(403)
+    estado_nuevo = "inactivo" if usuario.estado == "activo" else "activo"
+
+    bloqueo = motivo_bloqueo_usuario(usuario, usuario_actual(), estado_nuevo=estado_nuevo)
+    if bloqueo:
+        flash(bloqueo, "error")
+        return redirect(url_for("usuarios.listar_usuarios"))
+
+    usuario.estado = estado_nuevo
+    db.session.commit()
+    accion = "activado" if estado_nuevo == "activo" else "desactivado"
+    flash(f"Usuario '{usuario.nombre_completo}' {accion}.", "exito")
     return redirect(url_for("usuarios.listar_usuarios"))

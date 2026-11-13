@@ -30,6 +30,7 @@ from models.apartamento import Apartamento  # noqa: F401 (registra proyecto.apar
 from models.cliente import Cliente
 from models.proyecto import Proyecto
 from models.usuario import Usuario
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_entero, validar_lengitud, validar_no_vacio, validar_solo_letras
 
 proyectos_bp = Blueprint("proyectos", __name__)
@@ -109,17 +110,20 @@ def _formulario(accion, proyecto=None, **valores):
 
 
 @proyectos_bp.route("/", methods=["GET"])
+@rol_requerido("proyectos", "ver")
 def listar_proyectos():
     proyectos = Proyecto.query.order_by(Proyecto.nombre_proyecto).all()
     return render_template("proyectos/lista.html", proyectos=proyectos)
 
 
 @proyectos_bp.route("/nuevo", methods=["GET"])
+@rol_requerido("proyectos", "editar")
 def formulario_nuevo():
     return _formulario("crear")
 
 
 @proyectos_bp.route("/crear", methods=["POST"])
+@rol_requerido("proyectos", "editar")
 def crear_proyecto():
     errores, datos = validar_datos_proyecto(request.form)
     if errores:
@@ -148,6 +152,7 @@ def crear_proyecto():
 
 
 @proyectos_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("proyectos", "editar")
 def formulario_editar(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -157,6 +162,7 @@ def formulario_editar(id):
 
 
 @proyectos_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("proyectos", "editar")
 def actualizar_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -182,6 +188,7 @@ def actualizar_proyecto(id):
 
 
 @proyectos_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("proyectos", "eliminar")
 def eliminar_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:

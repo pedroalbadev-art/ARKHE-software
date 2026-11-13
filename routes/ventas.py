@@ -33,6 +33,7 @@ from models import db
 from models.apartamento import Apartamento
 from models.cliente import Cliente
 from models.venta import Venta
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura, MAXIMO_DECIMAL_15_2
 
 ventas_bp = Blueprint("ventas", __name__)
@@ -95,17 +96,20 @@ def _formulario(datos, accion, venta=None):
 
 
 @ventas_bp.route("/", methods=["GET"])
+@rol_requerido("ventas", "ver")
 def listar_ventas():
     ventas = Venta.query.order_by(Venta.fecha_venta.desc(), Venta.id_venta.desc()).all()
     return render_template("ventas/lista.html", ventas=ventas)
 
 
 @ventas_bp.route("/nueva", methods=["GET"])
+@rol_requerido("ventas", "editar")
 def formulario_nuevo():
     return _formulario({"fecha_venta": date.today().isoformat()}, "crear")
 
 
 @ventas_bp.route("/crear", methods=["POST"])
+@rol_requerido("ventas", "editar")
 def crear_venta():
     errores, datos, apartamento = validar_datos_venta(request.form)
     if errores:
@@ -127,6 +131,7 @@ def crear_venta():
 
 
 @ventas_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("ventas", "editar")
 def formulario_editar(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -142,6 +147,7 @@ def formulario_editar(id):
 
 
 @ventas_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("ventas", "editar")
 def actualizar_venta(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -171,6 +177,7 @@ def actualizar_venta(id):
 
 
 @ventas_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("ventas", "eliminar")
 def eliminar_venta(id):
     venta = db.session.get(Venta, id)
     if not venta:

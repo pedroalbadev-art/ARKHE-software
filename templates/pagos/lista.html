@@ -25,8 +25,10 @@
       <option value="{{ metodo }}">{{ metodo }}</option>
       {% endfor %}
     </select>
+    {% if puede('pagos', 'editar') %}
     <a href="{{ url_for('pagos.formulario_nuevo', venta=venta_filtro.id_venta) if venta_filtro else url_for('pagos.formulario_nuevo') }}"
        class="btn btn-primary">+ Registrar Pago</a>
+    {% endif %}
   </div>
 
   <div class="tarjeta tarjeta-sin-padding">
@@ -55,11 +57,17 @@
             <td>{{ pago.metodo_pago }}</td>
             <td>
               <div class="acciones" style="justify-content:center;">
+                {% if puede('pagos', 'editar') %}
                 <a href="{{ url_for('pagos.formulario_editar', id=pago.id_pago) }}" class="btn btn-sm accion-editar">Editar</a>
+                {% else %}<span class="suave">Solo consulta</span>
+                {% endif %}
+                {# Eliminar pagos: solo el Administrador. #}
+                {% if puede('pagos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('pagos.eliminar_pago', id=pago.id_pago) }}"
                       onsubmit="return confirm('¿Eliminar el pago #{{ pago.id_pago }}?');">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>

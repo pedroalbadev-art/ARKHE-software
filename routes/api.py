@@ -39,7 +39,7 @@ Codigos de respuesta HTTP:
 
 from decimal import Decimal
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, abort, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from models import db
@@ -50,11 +50,15 @@ from models.proyecto import Proyecto
 from models.usuario import Usuario
 from models.venta import Venta
 from routes.apartamentos import validar_datos_apartamento
+from routes.auth import autenticar
 from routes.clientes import _validar_datos_cliente as validar_datos_cliente
 from routes.pagos import validar_datos_pago
 from routes.proyectos import validar_datos_proyecto
 from routes.usuarios import _validar_datos_usuario as validar_datos_usuario
+from routes.usuarios import motivo_bloqueo_usuario
 from routes.ventas import validar_datos_venta
+from utils.seguridad import puede_cambiar_estado, rol_requerido, usuario_actual
+from utils.validaciones import es_estado_valido
 
 api_bp = Blueprint("api", __name__)
 
@@ -166,6 +170,7 @@ def venta_a_dict(v, con_pagos=False):
 
 @api_bp.route("", methods=["GET"])
 @api_bp.route("/", methods=["GET"])
+@rol_requerido("dashboard", "ver")
 def indice():
     recursos = ["clientes", "usuarios", "proyectos", "apartamentos", "ventas", "pagos"]
     return jsonify(
@@ -178,12 +183,31 @@ def indice():
             "PUT /api/<recurso>/<id>": "Actualizar (JSON)",
             "DELETE /api/<recurso>/<id>": "Eliminar",
         },
-        extras={"GET /api/resumen": "Cifras del dashboard",
+        extras={"POST /api/login": "Iniciar sesion (JSON con correo y contrasena)",
+                "PUT /api/usuarios/<id>/estado": "Activar o desactivar un usuario",
+                "GET /api/resumen": "Cifras del dashboard",
                 "GET /api/pagos?venta=<id>": "Pagos de una venta"},
     )
 
 
+@api_bp.route("/login", methods=["POST"])
+def api_login():
+    """Inicia sesion desde la API: {"correo": "...", "contrasena": "..."}.
+    Usa la misma funcion que la pantalla de login. Si las credenciales
+    son correctas, la respuesta trae la cookie de sesion; el cliente
+    (Postman la guarda solo) debe enviarla en las peticiones siguientes.
+    Es la unica ruta de la API que no exige sesion."""
+    datos = _leer_json()
+    if datos is None:
+        return _error_json()
+    usuario, error = autenticar(datos.get("correo"), datos.get("contrasena"))
+    if usuario is None:
+        return jsonify(error=error), 401
+    return jsonify(mensaje="Sesion iniciada.", usuario=usuario_a_dict(usuario))
+
+
 @api_bp.route("/resumen", methods=["GET"])
+@rol_requerido("dashboard", "ver")
 def resumen():
     ventas = Venta.query.all()
     vendido = sum((Decimal(v.valor_venta) for v in ventas), Decimal("0"))
@@ -207,11 +231,13 @@ def resumen():
 # ---------------------------------------------------------------------
 
 @api_bp.route("/clientes", methods=["GET"])
+@rol_requerido("clientes", "ver")
 def api_listar_clientes():
     return jsonify([cliente_a_dict(c) for c in Cliente.query.order_by(Cliente.id_cliente).all()])
 
 
 @api_bp.route("/clientes/<int:id>", methods=["GET"])
+@rol_requerido("clientes", "ver")
 def api_obtener_cliente(id):
     cliente = db.session.get(Cliente, id)
     return jsonify(cliente_a_dict(cliente)) if cliente else _no_existe("El cliente", id)
@@ -223,6 +249,7 @@ def _aplicar_cliente(cliente, datos):
 
 
 @api_bp.route("/clientes", methods=["POST"])
+@rol_requerido("clientes", "editar")
 def api_crear_cliente():
     datos = _leer_json()
     if datos is None:
@@ -239,6 +266,7 @@ def api_crear_cliente():
 
 
 @api_bp.route("/clientes/<int:id>", methods=["PUT"])
+@rol_requerido("clientes", "editar")
 def api_actualizar_cliente(id):
     cliente = db.session.get(Cliente, id)
     if not cliente:
@@ -256,6 +284,7 @@ def api_actualizar_cliente(id):
 
 
 @api_bp.route("/clientes/<int:id>", methods=["DELETE"])
+@rol_requerido("clientes", "eliminar")
 def api_eliminar_cliente(id):
     cliente = db.session.get(Cliente, id)
     if not cliente:
@@ -272,17 +301,20 @@ def api_eliminar_cliente(id):
 # ---------------------------------------------------------------------
 
 @api_bp.route("/usuarios", methods=["GET"])
+@rol_requerido("usuarios", "ver")
 def api_listar_usuarios():
     return jsonify([usuario_a_dict(u) for u in Usuario.query.order_by(Usuario.id_usuario).all()])
 
 
 @api_bp.route("/usuarios/<int:id>", methods=["GET"])
+@rol_requerido("usuarios", "ver")
 def api_obtener_usuario(id):
     usuario = db.session.get(Usuario, id)
     return jsonify(usuario_a_dict(usuario)) if usuario else _no_existe("El usuario", id)
 
 
 @api_bp.route("/usuarios", methods=["POST"])
+@rol_requerido("usuarios", "editar")
 def api_crear_usuario():
     datos = _leer_json()
     if datos is None:
@@ -300,6 +332,7 @@ def api_crear_usuario():
 
 
 @api_bp.route("/usuarios/<int:id>", methods=["PUT"])
+@rol_requerido("usuarios", "editar")
 def api_actualizar_usuario(id):
     usuario = db.session.get(Usuario, id)
     if not usuario:
@@ -311,6 +344,10 @@ def api_actualizar_usuario(id):
     errores = validar_datos_usuario(datos, requiere_contrasena=False)
     if errores:
         return _errores(errores)
+    bloqueo = motivo_bloqueo_usuario(usuario, usuario_actual(), rol_nuevo=datos["rol"],
+                                     estado_nuevo=datos.get("estado", usuario.estado))
+    if bloqueo:
+        return _conflicto(bloqueo)
     usuario.nombre = datos["nombre"].strip()
     usuario.apellido = datos["apellido"].strip()
     usuario.correo = datos["correo"].strip()
@@ -324,15 +361,44 @@ def api_actualizar_usuario(id):
 
 
 @api_bp.route("/usuarios/<int:id>", methods=["DELETE"])
+@rol_requerido("usuarios", "eliminar")
 def api_eliminar_usuario(id):
     usuario = db.session.get(Usuario, id)
     if not usuario:
         return _no_existe("El usuario", id)
     if usuario.proyectos:
         return _conflicto("No se puede eliminar: el usuario gestiona proyectos. Puede desactivarlo (estado 'inactivo').")
+    bloqueo = motivo_bloqueo_usuario(usuario, usuario_actual(), eliminar=True)
+    if bloqueo:
+        return _conflicto(bloqueo)
     db.session.delete(usuario)
     db.session.commit()
     return jsonify(mensaje=f"Usuario {id} eliminado.")
+
+
+@api_bp.route("/usuarios/<int:id>/estado", methods=["PUT"])
+@rol_requerido("usuarios", "estado")
+def api_cambiar_estado_usuario(id):
+    """Activa o desactiva un usuario: {"estado": "activo" | "inactivo"}.
+    El Administrador, con cualquier cuenta; el Gerente, solo con
+    cuentas de Vendedor (403 en otro caso)."""
+    usuario = db.session.get(Usuario, id)
+    if not usuario:
+        return _no_existe("El usuario", id)
+    if not puede_cambiar_estado(usuario_actual(), usuario):
+        abort(403)
+    datos = _leer_json()
+    if datos is None:
+        return _error_json()
+    estado = datos.get("estado", "")
+    if not es_estado_valido(estado):
+        return _errores(["El estado debe ser 'activo' o 'inactivo'."])
+    bloqueo = motivo_bloqueo_usuario(usuario, usuario_actual(), estado_nuevo=estado)
+    if bloqueo:
+        return _conflicto(bloqueo)
+    usuario.estado = estado
+    db.session.commit()
+    return jsonify(usuario_a_dict(usuario))
 
 
 # ---------------------------------------------------------------------
@@ -340,17 +406,20 @@ def api_eliminar_usuario(id):
 # ---------------------------------------------------------------------
 
 @api_bp.route("/proyectos", methods=["GET"])
+@rol_requerido("proyectos", "ver")
 def api_listar_proyectos():
     return jsonify([proyecto_a_dict(p) for p in Proyecto.query.order_by(Proyecto.id_proyecto).all()])
 
 
 @api_bp.route("/proyectos/<int:id>", methods=["GET"])
+@rol_requerido("proyectos", "ver")
 def api_obtener_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     return jsonify(proyecto_a_dict(proyecto)) if proyecto else _no_existe("El proyecto", id)
 
 
 @api_bp.route("/proyectos", methods=["POST"])
+@rol_requerido("proyectos", "editar")
 def api_crear_proyecto():
     datos = _leer_json()
     if datos is None:
@@ -365,6 +434,7 @@ def api_crear_proyecto():
 
 
 @api_bp.route("/proyectos/<int:id>", methods=["PUT"])
+@rol_requerido("proyectos", "editar")
 def api_actualizar_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -383,6 +453,7 @@ def api_actualizar_proyecto(id):
 
 
 @api_bp.route("/proyectos/<int:id>", methods=["DELETE"])
+@rol_requerido("proyectos", "eliminar")
 def api_eliminar_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -399,6 +470,7 @@ def api_eliminar_proyecto(id):
 # ---------------------------------------------------------------------
 
 @api_bp.route("/apartamentos", methods=["GET"])
+@rol_requerido("apartamentos", "ver")
 def api_listar_apartamentos():
     consulta = Apartamento.query
     if request.args.get("estado"):
@@ -409,12 +481,14 @@ def api_listar_apartamentos():
 
 
 @api_bp.route("/apartamentos/<int:id>", methods=["GET"])
+@rol_requerido("apartamentos", "ver")
 def api_obtener_apartamento(id):
     apto = db.session.get(Apartamento, id)
     return jsonify(apartamento_a_dict(apto)) if apto else _no_existe("El apartamento", id)
 
 
 @api_bp.route("/apartamentos", methods=["POST"])
+@rol_requerido("apartamentos", "editar")
 def api_crear_apartamento():
     datos = _leer_json()
     if datos is None:
@@ -429,6 +503,7 @@ def api_crear_apartamento():
 
 
 @api_bp.route("/apartamentos/<int:id>", methods=["PUT"])
+@rol_requerido("apartamentos", "editar")
 def api_actualizar_apartamento(id):
     apto = db.session.get(Apartamento, id)
     if not apto:
@@ -446,6 +521,7 @@ def api_actualizar_apartamento(id):
 
 
 @api_bp.route("/apartamentos/<int:id>", methods=["DELETE"])
+@rol_requerido("apartamentos", "eliminar")
 def api_eliminar_apartamento(id):
     apto = db.session.get(Apartamento, id)
     if not apto:
@@ -462,6 +538,7 @@ def api_eliminar_apartamento(id):
 # ---------------------------------------------------------------------
 
 @api_bp.route("/ventas", methods=["GET"])
+@rol_requerido("ventas", "ver")
 def api_listar_ventas():
     ventas = Venta.query.order_by(Venta.id_venta).all()
     estado = request.args.get("estado")
@@ -469,12 +546,14 @@ def api_listar_ventas():
 
 
 @api_bp.route("/ventas/<int:id>", methods=["GET"])
+@rol_requerido("ventas", "ver")
 def api_obtener_venta(id):
     venta = db.session.get(Venta, id)
     return jsonify(venta_a_dict(venta, con_pagos=True)) if venta else _no_existe("La venta", id)
 
 
 @api_bp.route("/ventas", methods=["POST"])
+@rol_requerido("ventas", "editar")
 def api_crear_venta():
     datos = _leer_json()
     if datos is None:
@@ -490,6 +569,7 @@ def api_crear_venta():
 
 
 @api_bp.route("/ventas/<int:id>", methods=["PUT"])
+@rol_requerido("ventas", "editar")
 def api_actualizar_venta(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -511,6 +591,7 @@ def api_actualizar_venta(id):
 
 
 @api_bp.route("/ventas/<int:id>", methods=["DELETE"])
+@rol_requerido("ventas", "eliminar")
 def api_eliminar_venta(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -528,6 +609,7 @@ def api_eliminar_venta(id):
 # ---------------------------------------------------------------------
 
 @api_bp.route("/pagos", methods=["GET"])
+@rol_requerido("pagos", "ver")
 def api_listar_pagos():
     consulta = Pago.query
     if request.args.get("venta"):
@@ -536,12 +618,14 @@ def api_listar_pagos():
 
 
 @api_bp.route("/pagos/<int:id>", methods=["GET"])
+@rol_requerido("pagos", "ver")
 def api_obtener_pago(id):
     pago = db.session.get(Pago, id)
     return jsonify(pago_a_dict(pago)) if pago else _no_existe("El pago", id)
 
 
 @api_bp.route("/pagos", methods=["POST"])
+@rol_requerido("pagos", "editar")
 def api_crear_pago():
     datos = _leer_json()
     if datos is None:
@@ -555,6 +639,7 @@ def api_crear_pago():
 
 
 @api_bp.route("/pagos/<int:id>", methods=["PUT"])
+@rol_requerido("pagos", "editar")
 def api_actualizar_pago(id):
     pago = db.session.get(Pago, id)
     if not pago:
@@ -572,6 +657,7 @@ def api_actualizar_pago(id):
 
 
 @api_bp.route("/pagos/<int:id>", methods=["DELETE"])
+@rol_requerido("pagos", "eliminar")
 def api_eliminar_pago(id):
     pago = db.session.get(Pago, id)
     if not pago:

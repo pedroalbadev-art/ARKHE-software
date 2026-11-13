@@ -34,7 +34,9 @@
       <option value="en-pago">En pago</option>
       <option value="pagada">Pagada</option>
     </select>
+    {% if puede('ventas', 'editar') %}
     <a href="{{ url_for('ventas.formulario_nuevo') }}" class="btn btn-primary">+ Nueva Venta</a>
+    {% endif %}
   </div>
 
   <div class="tarjeta tarjeta-sin-padding">
@@ -65,8 +67,11 @@
             <td>
               <div class="acciones" style="justify-content:center;">
                 <a href="{{ url_for('pagos.listar_pagos', venta=venta.id_venta) }}" class="btn btn-sm accion-ver">Pagos ({{ venta.pagos|length }})</a>
+                {% if puede('ventas', 'editar') %}
                 <a href="{{ url_for('ventas.formulario_editar', id=venta.id_venta) }}" class="btn btn-sm accion-editar">Editar</a>
-                {% if not venta.pagos %}
+                {% endif %}
+                {# Eliminar ventas: solo el Administrador. #}
+                {% if not venta.pagos and puede('ventas', 'eliminar') %}
                 <form method="POST" action="{{ url_for('ventas.eliminar_venta', id=venta.id_venta) }}"
                       onsubmit="return confirm('¿Eliminar la venta #{{ venta.id_venta }}? El apartamento volvera a estar disponible.');">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>

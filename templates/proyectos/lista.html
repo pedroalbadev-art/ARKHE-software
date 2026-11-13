@@ -24,7 +24,9 @@
   </div>
 
   <div class="herramientas">
+    {% if puede('proyectos', 'editar') %}
     <a href="{{ url_for('proyectos.formulario_nuevo') }}" class="btn btn-primary">+ Nuevo Proyecto</a>
+    {% endif %}
     <input type="search" id="buscador" placeholder="Buscar proyecto por nombre, ciudad, cliente o gestor...">
   </div>
 
@@ -54,11 +56,16 @@
             <td class="num">{{ proyecto.apartamentos|length }}</td>
             <td>
               <div class="acciones" style="justify-content:center;">
+                {% if puede('proyectos', 'editar') %}
                 <a href="{{ url_for('proyectos.formulario_editar', id=proyecto.id_proyecto) }}" class="btn btn-sm accion-editar">Editar</a>
+                {% endif %}
+                {% if puede('proyectos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('proyectos.eliminar_proyecto', id=proyecto.id_proyecto) }}"
                       onsubmit="return confirm('¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?');">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
+                {% endif %}
+                {% if not puede('proyectos', 'editar') %}<span class="suave">Solo consulta</span>{% endif %}
               </div>
             </td>
           </tr>

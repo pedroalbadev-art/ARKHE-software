@@ -34,6 +34,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from models import db
 from models.apartamento import ESTADOS_EDITABLES, Apartamento
 from models.proyecto import Proyecto
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, es_numero_apto_valido, MAXIMO_DECIMAL_15_2
 
 apartamentos_bp = Blueprint("apartamentos", __name__)
@@ -109,6 +110,7 @@ def _formulario(datos, accion, apartamento=None):
 
 
 @apartamentos_bp.route("/", methods=["GET"])
+@rol_requerido("apartamentos", "ver")
 def listar_apartamentos():
     apartamentos = Apartamento.query.order_by(
         Apartamento.id_proyecto, Apartamento.numero_apartamento
@@ -117,11 +119,13 @@ def listar_apartamentos():
 
 
 @apartamentos_bp.route("/nuevo", methods=["GET"])
+@rol_requerido("apartamentos", "editar")
 def formulario_nuevo():
     return _formulario({"estado": "disponible"}, "crear")
 
 
 @apartamentos_bp.route("/crear", methods=["POST"])
+@rol_requerido("apartamentos", "editar")
 def crear_apartamento():
     errores, datos = validar_datos_apartamento(request.form)
     if errores:
@@ -141,6 +145,7 @@ def crear_apartamento():
 
 
 @apartamentos_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("apartamentos", "editar")
 def formulario_editar(id):
     apartamento = db.session.get(Apartamento, id)
     if not apartamento:
@@ -159,6 +164,7 @@ def formulario_editar(id):
 
 
 @apartamentos_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("apartamentos", "editar")
 def actualizar_apartamento(id):
     apartamento = db.session.get(Apartamento, id)
     if not apartamento:
@@ -184,6 +190,7 @@ def actualizar_apartamento(id):
 
 
 @apartamentos_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("apartamentos", "eliminar")
 def eliminar_apartamento(id):
     apartamento = db.session.get(Apartamento, id)
     if not apartamento:

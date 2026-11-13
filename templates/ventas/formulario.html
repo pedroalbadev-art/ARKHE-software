@@ -10,7 +10,9 @@
     {% if not apartamentos %}
       <div class="vacio">
         <p>No hay apartamentos disponibles o reservados para vender.</p>
+        {% if puede('apartamentos', 'editar') %}
         <a href="{{ url_for('apartamentos.formulario_nuevo') }}" class="btn btn-primary">Crear un apartamento</a>
+        {% endif %}
       </div>
     {% else %}
     <form method="POST"

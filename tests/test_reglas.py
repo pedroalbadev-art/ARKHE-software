@@ -18,7 +18,17 @@ from sqlalchemy.exc import IntegrityError
 from models import db
 from models.proyecto import Proyecto
 
+from tests.conftest import entrar_como
+
 VALOR = 200000000
+
+
+@pytest.fixture(autouse=True)
+def _sesion_de_administrador(api, datos):
+    """La API exige sesion: todas las pruebas de este archivo se
+    ejecutan como Administrador (el rol que puede hacer todo), porque
+    aqui se prueban las reglas de negocio, no los permisos."""
+    entrar_como(api, "Administrador")
 
 
 def crear_venta(api, datos, **cambios):

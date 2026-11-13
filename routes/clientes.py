@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 
 from models import db
 from models.cliente import Cliente
+from utils.seguridad import rol_requerido
 from utils.validaciones import (
     es_correo_valido,
     es_documento_valido,
@@ -67,6 +68,7 @@ def _validar_datos_cliente(form):
 
 
 @clientes_bp.route("/")
+@rol_requerido("clientes", "ver")
 def listar_clientes():
     """Muestra la tabla con todos los clientes registrados, ordenados
     alfabeticamente por nombre."""
@@ -75,6 +77,7 @@ def listar_clientes():
 
 
 @clientes_bp.route("/nuevo", methods=["POST"])
+@rol_requerido("clientes", "editar")
 def crear_cliente():
     """Valida y crea un nuevo cliente a partir del formulario modal
     'Nuevo Cliente' (definido en lista.html). Si hay errores de
@@ -107,6 +110,7 @@ def crear_cliente():
 
 
 @clientes_bp.route("/<int:id_cliente>/editar", methods=["GET"])
+@rol_requerido("clientes", "editar")
 def editar_cliente(id_cliente):
     """Muestra el formulario de edicion precargado con los datos
     actuales del cliente indicado.
@@ -120,6 +124,7 @@ def editar_cliente(id_cliente):
 
 
 @clientes_bp.route("/<int:id_cliente>/editar", methods=["POST"])
+@rol_requerido("clientes", "editar")
 def actualizar_cliente(id_cliente):
     """Valida y guarda los cambios enviados desde el formulario de
     edicion."""
@@ -149,6 +154,7 @@ def actualizar_cliente(id_cliente):
 
 
 @clientes_bp.route("/<int:id_cliente>/eliminar", methods=["POST"])
+@rol_requerido("clientes", "eliminar")
 def eliminar_cliente(id_cliente):
     """Elimina un cliente de la base de datos.
 

@@ -32,7 +32,9 @@
       <option value="reservado">Reservado</option>
       <option value="vendido">Vendido</option>
     </select>
+    {% if puede('apartamentos', 'editar') %}
     <a href="{{ url_for('apartamentos.formulario_nuevo') }}" class="btn btn-primary">+ Nuevo Apartamento</a>
+    {% endif %}
   </div>
 
   <div class="tarjeta tarjeta-sin-padding">
@@ -62,8 +64,11 @@
             <td class="centro"><span class="badge badge-{{ apto.estado|lower }}">{{ apto.estado|capitalize }}</span></td>
             <td>
               <div class="acciones" style="justify-content:center;">
+                {% if puede('apartamentos', 'editar') %}
                 <a href="{{ url_for('apartamentos.formulario_editar', id=apto.id_apartamento) }}" class="btn btn-sm accion-editar">Editar</a>
-                {% if not apto.venta %}
+                {% else %}<span class="suave">Solo consulta</span>
+                {% endif %}
+                {% if not apto.venta and puede('apartamentos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('apartamentos.eliminar_apartamento', id=apto.id_apartamento) }}"
                       onsubmit="return confirm('¿Eliminar el apartamento {{ apto.numero_apartamento }}?');">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
