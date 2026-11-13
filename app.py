@@ -40,6 +40,8 @@ from routes.apartamentos import apartamentos_bp
 from routes.ventas import ventas_bp
 from routes.pagos import pagos_bp
 from routes.api import api_bp
+from routes.auth import auth_bp
+from utils.seguridad import exigir_sesion, usuario_actual
 
 
 def create_app(clase_config=Config):
@@ -68,8 +70,21 @@ def create_app(clase_config=Config):
     # Conecta la extension Flask-SQLAlchemy con esta instancia de la app.
     db.init_app(app)
 
+    # Autenticacion: antes de CADA peticion se comprueba que haya sesion
+    # (ver utils/seguridad.py). Solo el login y los archivos estaticos
+    # quedan abiertos.
+    app.before_request(exigir_sesion)
+
+    # Deja disponible {{ usuario_actual }} en todas las plantillas (el
+    # encabezado muestra el nombre, el rol y el boton "Cerrar sesion").
+    @app.context_processor
+    def _datos_de_sesion():
+        return {"usuario_actual": usuario_actual()}
+
     # Registra los blueprints (grupos de rutas) de cada modulo.
-    # El dashboard está registrado sin url_prefix porque es la raíz (/).
+    # Login y logout (/login, /logout) y el dashboard se registran sin
+    # url_prefix; el dashboard es la raíz (/).
+    app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
 
     # El resto de módulos tienen su prefijo

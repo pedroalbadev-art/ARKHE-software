@@ -68,9 +68,8 @@ class Usuario(db.Model):
 
     def verificar_contrasena(self, contrasena_en_texto_plano):
         """Compara una contraseña en texto plano (la que alguien
-        escribiria en un formulario de inicio de sesion) contra el
-        hash guardado. Todavia no se usa en ninguna ruta -- queda
-        lista para cuando se construya el modulo de login."""
+        escribe en el formulario de inicio de sesion) contra el hash
+        guardado. La usa el login (routes/auth.py)."""
         return check_password_hash(self.contrasena, contrasena_en_texto_plano)
 
     def __repr__(self):

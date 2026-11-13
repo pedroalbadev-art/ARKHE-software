@@ -398,6 +398,39 @@ body {
 .modal-cerrar { background: none; border: none; font-size: 24px; color: var(--texto-suave); cursor: pointer; line-height: 1; }
 .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
 
+/* ================= Usuario conectado (encabezado) ================= */
+.sesion { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.sesion-datos { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; }
+.sesion-nombre { font-size: 14px; font-weight: 500; color: var(--texto); }
+.sesion-rol { font-size: 12px; color: var(--dorado); }
+.sesion form { margin: 0; }
+
+/* ================= Pantalla de inicio de sesion ================= */
+.login-pagina {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+}
+.login-tarjeta {
+    width: 100%;
+    max-width: 380px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    padding: 40px 32px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 13px rgba(0, 0, 0, 0.05);
+}
+.login-marca { text-align: center; margin-bottom: 28px; }
+.login-marca img { max-width: 180px; max-height: 120px; object-fit: contain; }
+.login-marca p { margin: 4px 0 0; font-size: 14px; color: var(--texto-suave); }
+.login-form { display: flex; flex-direction: column; gap: 18px; }
+.login-form label { text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.login-form .btn { padding: 12px 18px; font-size: 15px; margin-top: 6px; }
+.login-nota { margin: 24px 0 0; font-size: 12px; color: #6B7280; text-align: center; line-height: 1.6; }
+
 /* ================= Pantallas pequenas ================= */
 @media (max-width: 900px) {
     .layout { flex-direction: column; }

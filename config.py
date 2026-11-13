@@ -14,6 +14,7 @@ Estandar de codificacion: PEP 8 (snake_case, docstrings explicando el
 """
 
 import os
+from datetime import timedelta
 
 from dotenv import load_dotenv
 from sqlalchemy.engine import URL
@@ -58,6 +59,15 @@ class Config:
     # permitiria a cualquiera falsificar una sesion. Si falta,
     # create_app() (app.py) detiene el arranque y explica como crearla.
     SECRET_KEY = os.getenv("SECRET_KEY")
+
+    # Cookie de sesion:
+    #  - HTTPONLY: el JavaScript de la pagina no puede leerla.
+    #  - SAMESITE "Lax": el navegador no la envia en formularios POST
+    #    que vengan de otro sitio web.
+    #  - La sesion caduca a las 8 horas (una jornada de trabajo).
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
 
     # Modo depuracion (recarga automatica y errores detallados en el
     # navegador). Apagado por defecto: solo se enciende escribiendo

@@ -307,7 +307,7 @@ def api_actualizar_usuario(id):
     datos = _leer_json()
     if datos is None:
         return _error_json()
-    nueva_contrasena = datos.get("contrasena", "").strip()
+    nueva_contrasena = datos.get("contrasena", "")
     errores = validar_datos_usuario(datos, requiere_contrasena=False)
     if errores:
         return _errores(errores)

@@ -48,6 +48,18 @@
       <header class="encabezado">
         <h1>{% block titulo_pagina %}ARKHE{% endblock %}</h1>
         <div class="encabezado-acciones">{% block acciones %}{% endblock %}</div>
+        {# Usuario conectado y cierre de sesion (POST, no enlace). #}
+        {% if usuario_actual %}
+        <div class="sesion">
+          <div class="sesion-datos">
+            <span class="sesion-nombre">{{ usuario_actual.nombre_completo }}</span>
+            <span class="sesion-rol">{{ usuario_actual.rol }}</span>
+          </div>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <button type="submit" class="btn btn-secondary">Cerrar sesión</button>
+          </form>
+        </div>
+        {% endif %}
       </header>
 
       <main class="contenido">

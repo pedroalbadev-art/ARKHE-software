@@ -66,7 +66,7 @@ def _validar_datos_usuario(form, requiere_contrasena):
     contrasena = form.get("contrasena", "")
     if requiere_contrasena or contrasena:
         if not es_contrasena_valida(contrasena):
-            errores.append("La contraseña debe tener minimo 8 caracteres.")
+            errores.append("La contraseña debe tener minimo 8 caracteres, sin espacios al inicio ni al final.")
 
     if not es_rol_valido(form.get("rol", "")):
         errores.append(f"El rol debe ser uno de: {', '.join(sorted(ROLES_VALIDOS))}.")
@@ -135,7 +135,8 @@ def actualizar_usuario(id_usuario):
     """Valida y guarda los cambios enviados desde el formulario de
     edicion, incluyendo rol y estado."""
     usuario = Usuario.query.get_or_404(id_usuario)
-    contrasena_nueva = request.form.get("contrasena", "").strip()
+    # Sin .strip(): se guarda exactamente lo que valido _validar_datos_usuario.
+    contrasena_nueva = request.form.get("contrasena", "")
 
     errores = _validar_datos_usuario(request.form, requiere_contrasena=False)
     if errores:

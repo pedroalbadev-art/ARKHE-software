@@ -86,10 +86,15 @@ def es_telefono_valido(valor):
 
 
 def es_contrasena_valida(valor, minimo=8):
-    """Longitud minima. La contraseña en si (texto plano) solo pasa
-    por esta funcion antes de ser hasheada -- nunca se guarda tal
-    cual en la base de datos (ver models/usuario.py)."""
-    return bool(valor) and len(valor.strip()) >= minimo
+    """Longitud minima y sin espacios al inicio ni al final. La
+    contraseña en si (texto plano) solo pasa por esta funcion antes de
+    ser hasheada -- nunca se guarda tal cual en la base de datos (ver
+    models/usuario.py).
+
+    Los espacios en los extremos se rechazan (en vez de recortarlos en
+    silencio) para que la contraseña guardada sea exactamente la que la
+    persona escribio y el login pueda compararla sin modificarla."""
+    return bool(valor) and len(valor) >= minimo and valor == valor.strip()
 
 
 def es_rol_valido(valor):
