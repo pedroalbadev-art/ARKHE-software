@@ -42,7 +42,7 @@ from routes.pagos import pagos_bp
 from routes.api import api_bp
 
 
-def create_app():
+def create_app(clase_config=Config):
     """Crea y configura la aplicacion Flask (patron "application
     factory").
 
@@ -50,9 +50,20 @@ def create_app():
     modulo porque asi es mas facil crear varias instancias de la
     aplicacion sin que se interfieran entre si (por ejemplo, una
     instancia para desarrollo y otra para pruebas automatizadas).
+
+    `clase_config` es la clase de configuracion a usar. Por defecto es
+    Config (MySQL, datos del .env); las pruebas pasan otra que apunta a
+    una base temporal (ver tests/conftest.py), para no tocar ARKHE_V1.
     """
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(clase_config)
+
+    if not app.config.get("SECRET_KEY"):
+        raise RuntimeError(
+            "Falta SECRET_KEY en el archivo .env. Genere una con:\n"
+            '    python -c "import secrets; print(secrets.token_hex(32))"\n'
+            "y agreguela al .env como SECRET_KEY=<valor generado>."
+        )
 
     # Conecta la extension Flask-SQLAlchemy con esta instancia de la app.
     db.init_app(app)
@@ -81,12 +92,12 @@ def create_app():
     return app
 
 
-# Instancia global usada por "python app.py" y por el servidor de
-# desarrollo de Flask.
-app = create_app()
-
 if __name__ == "__main__":
-    # debug=True recarga el servidor automaticamente al guardar
-    # cambios y muestra errores detallados en el navegador; debe
-    # desactivarse en un entorno de produccion real.
-    app.run(debug=True)
+    # La app se crea aqui (y no a nivel de modulo) para que importar
+    # este archivo desde las pruebas no abra una conexion a MySQL.
+    # El modo depuracion sale del .env (FLASK_DEBUG=1) y esta apagado
+    # por defecto: con el encendido, el depurador permite ejecutar
+    # codigo desde el navegador, asi que nunca debe quedar activo en
+    # un servidor al que entren otras personas.
+    app = create_app()
+    app.run(debug=app.config["DEBUG"])
