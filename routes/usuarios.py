@@ -69,14 +69,14 @@ def _validar_datos_usuario(form, requiere_contrasena):
     elif not validar_lengitud(form.get("apellido", ""), max_len=100):
         errores.append("El apellido no puede exceder 100 caracteres.")
     if not es_correo_valido(form.get("correo", "")):
-        errores.append("El correo electronico no tiene un formato valido.")
+        errores.append("El correo electrónico no tiene un formato válido.")
     elif not validar_lengitud(form.get("correo", ""), max_len=150):
-        errores.append("El correo electronico no puede exceder 150 caracteres.")
+        errores.append("El correo electrónico no puede exceder 150 caracteres.")
 
     contrasena = form.get("contrasena", "")
     if requiere_contrasena or contrasena:
         if not es_contrasena_valida(contrasena):
-            errores.append("La contraseña debe tener minimo 8 caracteres, sin espacios al inicio ni al final.")
+            errores.append("La contraseña debe tener mínimo 8 caracteres, sin espacios al inicio ni al final.")
 
     if not es_rol_valido(form.get("rol", "")):
         errores.append(f"El rol debe ser uno de: {', '.join(sorted(ROLES_VALIDOS))}.")
@@ -117,7 +117,7 @@ def motivo_bloqueo_usuario(usuario, actual, rol_nuevo=None, estado_nuevo=None, e
             Usuario.id_usuario != usuario.id_usuario,
         ).count()
         if otros == 0:
-            return "No se permite: el sistema quedaria sin ningun Administrador activo."
+            return "No se permite: el sistema quedaría sin ningún Administrador activo."
     return None
 
 

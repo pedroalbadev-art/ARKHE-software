@@ -56,11 +56,79 @@
     if (alerta) alerta.closest(".alert").remove();
   });
 
+  var ENFOCABLES = "a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])";
+
   document.addEventListener("keydown", function (evento) {
-    if (evento.key !== "Escape") return;
     var abiertos = document.querySelectorAll(".modal-overlay.abierto");
-    if (abiertos.length) cerrarModal(abiertos[abiertos.length - 1]);
+    var modal = abiertos.length ? abiertos[abiertos.length - 1] : null;
+
+    if (evento.key === "Escape") {
+      if (modal) cerrarModal(modal);
+      else cerrarMenu();
+      return;
+    }
+
+    // Accesibilidad: mientras una modal esta abierta, la tecla Tab da la
+    // vuelta dentro de ella y no se escapa a la pagina de atras.
+    if (evento.key === "Tab" && modal) {
+      var elementos = modal.querySelectorAll(ENFOCABLES);
+      if (!elementos.length) return;
+      var primero = elementos[0];
+      var ultimo = elementos[elementos.length - 1];
+      if (evento.shiftKey && document.activeElement === primero) {
+        evento.preventDefault();
+        ultimo.focus();
+      } else if (!evento.shiftKey && document.activeElement === ultimo) {
+        evento.preventDefault();
+        primero.focus();
+      }
+    }
   });
+
+  // Una modal que el servidor ya envia abierta (cuando hubo un error al
+  // guardar): se lleva el foco al primer campo, como al abrirla a mano.
+  var abiertaPorServidor = document.querySelector(".modal-overlay.abierto");
+  if (abiertaPorServidor) abrirModal(abiertaPorServidor);
+
+  /* ---------- Menu lateral en pantallas pequenas ---------- */
+
+  // En celular el menu esta oculto fuera de la pantalla y se desliza al
+  // tocar el boton de las tres rayas (ver "Pantallas pequenas" en
+  // arkhe.css). Aqui solo se pone o se quita la clase "menu-abierto".
+  var botonMenu = document.querySelector("[data-alternar-menu]");
+
+  function fijarMenu(abierto) {
+    document.body.classList.toggle("menu-abierto", abierto);
+    if (botonMenu) botonMenu.setAttribute("aria-expanded", abierto ? "true" : "false");
+  }
+
+  function cerrarMenu() {
+    if (document.body.classList.contains("menu-abierto")) {
+      fijarMenu(false);
+      if (botonMenu) botonMenu.focus();
+    }
+  }
+
+  document.addEventListener("click", function (evento) {
+    if (evento.target.closest("[data-alternar-menu]")) {
+      fijarMenu(!document.body.classList.contains("menu-abierto"));
+    } else if (evento.target.closest("[data-cerrar-menu]")) {
+      cerrarMenu();
+    }
+  });
+
+  /* ---------- Formulario de venta: sugerir el precio ---------- */
+
+  // Comodidad: al elegir un apartamento se sugiere su precio como valor
+  // de venta, solo si el campo esta vacio. El servidor valida igual.
+  var selectApto = document.getElementById("id_apartamento");
+  var campoValor = document.getElementById("valor_venta");
+  if (selectApto && campoValor) {
+    selectApto.addEventListener("change", function () {
+      var precio = selectApto.options[selectApto.selectedIndex].getAttribute("data-precio");
+      if (precio && !campoValor.value) campoValor.value = precio;
+    });
+  }
 
   /* ---------- Confirmacion antes de eliminar ---------- */
 

@@ -39,5 +39,21 @@ class Proyecto(db.Model):
         backref="proyectos"
     )
 
+    @property
+    def resumen_apartamentos(self):
+        """Cuantos apartamentos tiene el proyecto y cuantos hay en cada
+        estado: {"total": 12, "disponible": 7, "reservado": 2, "vendido": 3}.
+
+        Es un valor CALCULADO (no una columna): se cuenta cada vez a
+        partir de los apartamentos del proyecto, asi nunca queda
+        desactualizado y no se duplica informacion en la base (3FN),
+        igual que Venta.estado."""
+        conteo = {"total": len(self.apartamentos), "disponible": 0, "reservado": 0, "vendido": 0}
+        for apartamento in self.apartamentos:
+            estado = (apartamento.estado or "").lower()
+            if estado in conteo:
+                conteo[estado] += 1
+        return conteo
+
     def __repr__(self):
         return f"<Proyecto {self.nombre_proyecto}>"

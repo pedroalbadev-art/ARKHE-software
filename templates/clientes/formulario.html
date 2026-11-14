@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Editar Cliente - ARKHE{% endblock %}
+{% block title %}Editar Cliente{% endblock %}
 {% block titulo_pagina %}Editar Cliente{% endblock %}
 
 {% block content %}
@@ -9,28 +9,28 @@
     <form method="post" action="{{ url_for('clientes.actualizar_cliente', id_cliente=cliente.id_cliente) }}" class="form-grid">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
-        <label>Nombre</label>
-        <input type="text" name="nombre" value="{{ cliente.nombre }}" required
+        <label for="campo-nombre">Nombre</label>
+        <input id="campo-nombre" type="text" name="nombre" value="{{ cliente.nombre }}" required
                pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
       </div>
       <div class="form-group">
-        <label>Apellido</label>
-        <input type="text" name="apellido" value="{{ cliente.apellido }}" required
+        <label for="campo-apellido">Apellido</label>
+        <input id="campo-apellido" type="text" name="apellido" value="{{ cliente.apellido }}" required
                pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
       </div>
       <div class="form-group">
-        <label>Numero de documento</label>
-        <input type="text" name="documento" value="{{ cliente.documento }}" required
-               pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)">
+        <label for="campo-documento">Número de documento</label>
+        <input id="campo-documento" type="text" name="documento" value="{{ cliente.documento }}" required
+               pattern="[0-9]{6,15}" title="Solo números (6 a 15 dígitos)">
       </div>
       <div class="form-group">
-        <label>Telefono</label>
-        <input type="tel" name="telefono" value="{{ cliente.telefono }}" required
-               pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)">
+        <label for="campo-telefono">Teléfono</label>
+        <input id="campo-telefono" type="tel" name="telefono" value="{{ cliente.telefono }}" required
+               pattern="[0-9]{7,15}" title="Solo números (7 a 15 dígitos)">
       </div>
       <div class="form-group full">
-        <label>Correo electronico</label>
-        <input type="email" name="correo" value="{{ cliente.correo }}" required>
+        <label for="campo-correo">Correo electrónico</label>
+        <input id="campo-correo" type="email" name="correo" value="{{ cliente.correo }}" required>
       </div>
       <div class="form-actions">
         <a class="btn btn-secondary" href="{{ url_for('clientes.listar_clientes') }}">Cancelar</a>

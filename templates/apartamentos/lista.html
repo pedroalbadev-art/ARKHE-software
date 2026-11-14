@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 {% from "_componentes.html" import estado_vacio %}
 
-{% block title %}Apartamentos - ARKHE{% endblock %}
-{% block titulo_pagina %}Gestion de Apartamentos{% endblock %}
+{% block title %}Apartamentos{% endblock %}
+{% block titulo_pagina %}Gestión de Apartamentos{% endblock %}
 
 {% block content %}
   <div class="kpis">
-    {% for titulo, estado, color in [('Total apartamentos', None, 'var(--dorado)'),
-                                     ('Disponibles', 'disponible', '#15803D'),
-                                     ('Reservados', 'reservado', '#B45309'),
-                                     ('Vendidos', 'vendido', '#B91C1C')] %}
+    {% for titulo, estado, color in [('Total apartamentos', None, 'marca'),
+                                     ('Disponibles', 'disponible', 'ok'),
+                                     ('Reservados', 'reservado', 'aviso'),
+                                     ('Vendidos', 'vendido', 'peligro')] %}
     <div class="kpi"><div>
       <p class="kpi-titulo">{{ titulo }}</p>
-      <p class="kpi-valor" style="color: {{ color }};">
+      <p class="kpi-valor texto-{{ color }}">
         {{ apartamentos|length if estado is none else apartamentos|selectattr('estado', 'equalto', estado)|list|length }}
       </p>
     </div></div>
@@ -20,7 +20,7 @@
   </div>
 
   <div class="herramientas">
-    <input type="search" id="buscador" placeholder="Buscar por numero o proyecto...">
+    <input type="search" id="buscador" aria-label="Buscar en la tabla" placeholder="Buscar por número o proyecto...">
     <select data-filtro="proyecto" aria-label="Filtrar por proyecto">
       <option value="">Todos los proyectos</option>
       {% for nombre in apartamentos|map(attribute='proyecto.nombre_proyecto')|unique|sort %}
@@ -45,7 +45,7 @@
           <tr>
             <th>Proyecto</th>
             <th>Apartamento</th>
-            <th class="num">Area (m²)</th>
+            <th class="num">Área (m²)</th>
             <th class="num">Habitaciones</th>
             <th class="num">Baños</th>
             <th class="num">Precio</th>
@@ -64,7 +64,7 @@
             <td class="num">{{ apto.precio|pesos }}</td>
             <td class="centro"><span class="badge badge-{{ apto.estado|lower }}">{{ apto.estado|capitalize }}</span></td>
             <td>
-              <div class="acciones" style="justify-content:center;">
+              <div class="acciones acciones-centro">
                 {% if puede('apartamentos', 'editar') %}
                 <a href="{{ url_for('apartamentos.formulario_editar', id=apto.id_apartamento) }}" class="btn btn-sm accion-editar">Editar</a>
                 {% else %}<span class="suave">Solo consulta</span>

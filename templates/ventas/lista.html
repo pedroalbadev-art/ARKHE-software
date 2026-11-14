@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "_componentes.html" import estado_vacio %}
 
-{% block title %}Ventas - ARKHE{% endblock %}
-{% block titulo_pagina %}Gestion de Ventas{% endblock %}
+{% block title %}Ventas{% endblock %}
+{% block titulo_pagina %}Gestión de Ventas{% endblock %}
 
 {% block content %}
   {% set vendido = ventas|sum(attribute='valor_venta') %}
@@ -28,7 +28,7 @@
   </div>
 
   <div class="herramientas">
-    <input type="search" id="buscador" placeholder="Buscar por ID, cliente, proyecto o apartamento...">
+    <input type="search" id="buscador" aria-label="Buscar en la tabla" placeholder="Buscar por ID, cliente, proyecto o apartamento...">
     <select data-filtro="estado" aria-label="Filtrar por estado">
       <option value="">Todos los estados</option>
       <option value="pendiente">Pendiente (sin pagos)</option>
@@ -66,7 +66,7 @@
             <td class="num">{{ venta.saldo|pesos }}</td>
             <td class="centro"><span class="badge badge-{{ venta.estado }}">{{ venta.estado }}</span></td>
             <td>
-              <div class="acciones" style="justify-content:center;">
+              <div class="acciones acciones-centro">
                 <a href="{{ url_for('pagos.listar_pagos', venta=venta.id_venta) }}" class="btn btn-sm accion-ver">Pagos ({{ venta.pagos|length }})</a>
                 {% if puede('ventas', 'editar') %}
                 <a href="{{ url_for('ventas.formulario_editar', id=venta.id_venta) }}" class="btn btn-sm accion-editar">Editar</a>

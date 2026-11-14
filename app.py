@@ -44,6 +44,30 @@ from routes.api import api_bp
 from routes.auth import auth_bp
 from utils.seguridad import es_api, exigir_sesion, puede, puede_cambiar_estado, usuario_actual
 
+# Content Security Policy: le dice al navegador de donde puede cargar
+# cada tipo de recurso. Es una segunda barrera contra el XSS: aunque un
+# dato malicioso llegara a una pagina, el navegador no lo ejecutaria.
+#   default-src 'self'      todo, por defecto, solo desde este servidor.
+#   script-src 'self'       solo archivos .js propios: se bloquea cualquier
+#                           <script> escrito en la pagina y los onclick="".
+#   style-src ... inline    hojas de estilo propias y atributos style=""
+#                           (el grafico del dashboard fija el alto de cada
+#                           barra con style; un estilo no ejecuta codigo).
+#   img-src 'self' data:    imagenes propias.
+#   object-src 'none'       sin complementos del navegador.
+#   base-uri / form-action  los formularios solo envian a este servidor.
+#   frame-ancestors 'none'  la app no se incrusta en otro sitio.
+CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+
 # Extension de proteccion CSRF (Flask-WTF). Se crea aqui y se conecta a
 # la app dentro de create_app(), igual que `db`.
 csrf = CSRFProtect()
@@ -115,6 +139,7 @@ def create_app(clase_config=Config):
         respuesta.headers.setdefault("X-Frame-Options", "DENY")
         respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
         respuesta.headers.setdefault("Referrer-Policy", "same-origin")
+        respuesta.headers.setdefault("Content-Security-Policy", CSP)
         return respuesta
 
     # ---- Paginas de error ----

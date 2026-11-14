@@ -57,6 +57,7 @@ from routes.proyectos import validar_datos_proyecto
 from routes.usuarios import _validar_datos_usuario as validar_datos_usuario
 from routes.usuarios import motivo_bloqueo_usuario
 from routes.ventas import validar_datos_venta
+from utils.resumen import calcular_resumen
 from utils.seguridad import puede_cambiar_estado, rol_requerido, usuario_actual
 from utils.validaciones import es_estado_valido
 
@@ -209,20 +210,19 @@ def api_login():
 @api_bp.route("/resumen", methods=["GET"])
 @rol_requerido("dashboard", "ver")
 def resumen():
-    ventas = Venta.query.all()
-    vendido = sum((Decimal(v.valor_venta) for v in ventas), Decimal("0"))
-    recaudado = sum((v.total_pagado for v in ventas), Decimal("0"))
+    # Mismo calculo que el dashboard (utils/resumen.py). Aqui solo se
+    # convierte el dinero (Decimal) a numero JSON; las claves y la forma
+    # de la respuesta no cambian.
+    cifras = calcular_resumen()
     return jsonify(
-        clientes=Cliente.query.count(),
-        usuarios=Usuario.query.count(),
-        proyectos=Proyecto.query.count(),
-        apartamentos={e: Apartamento.query.filter_by(estado=e).count()
-                      for e in ("disponible", "reservado", "vendido")},
-        ventas={e: sum(1 for v in ventas if v.estado == e)
-                for e in ("pendiente", "en-pago", "pagada")},
-        valor_vendido=float(vendido),
-        recaudado=float(recaudado),
-        saldo_por_cobrar=float(vendido - recaudado),
+        clientes=cifras["clientes"],
+        usuarios=cifras["usuarios"],
+        proyectos=cifras["proyectos"],
+        apartamentos=cifras["apartamentos"],
+        ventas=cifras["ventas"],
+        valor_vendido=float(cifras["valor_vendido"]),
+        recaudado=float(cifras["recaudado"]),
+        saldo_por_cobrar=float(cifras["saldo_por_cobrar"]),
     )
 
 

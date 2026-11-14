@@ -7,7 +7,9 @@
 */
 
 :root {
+    /* Paleta de la marca (dorado / bronce) */
     --bronce: #3A2F20;
+    --bronce-suave: #4A3B26;   /* opcion activa del menu lateral */
     --bronce-medio: #6E5A3C;
     --dorado: #8A6F52;
     --dorado-claro: #C9A876;
@@ -19,6 +21,12 @@
     --texto-suave: #6B7280;
     --exito: #10B981;
     --peligro: #EF4444;
+    /* Colores de estado, definidos una sola vez: disponible / pagada (ok),
+       reservado / pendiente (aviso), vendido (peligro), en pago (info). */
+    --estado-ok: #15803D;
+    --estado-aviso: #B45309;
+    --estado-peligro: #B91C1C;
+    --estado-info: #1D4ED8;
 }
 
 * { box-sizing: border-box; }
@@ -29,6 +37,27 @@ body {
     background: var(--fondo);
     color: var(--texto);
     line-height: 1.5;
+}
+
+/* ================= Accesibilidad ================= */
+/* Enlace "Saltar al contenido": invisible hasta que recibe el foco con
+   el teclado; evita recorrer todo el menu en cada pagina. */
+.saltar {
+    position: absolute;
+    left: 8px;
+    top: -48px;
+    z-index: 100;
+    padding: 8px 14px;
+    background: var(--bronce);
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+}
+.saltar:focus { top: 8px; }
+.contenido:focus { outline: none; }
+a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--dorado);
+    outline-offset: 1px;
 }
 
 /* ================= Estructura: menu lateral + area principal ================= */
@@ -82,7 +111,17 @@ body {
     transition: background 0.2s, opacity 0.2s;
 }
 .sidebar-item:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
-.sidebar-item.activo { opacity: 1; background: rgba(255, 255, 255, 0.15); font-weight: 500; }
+.sidebar-item.activo {
+    opacity: 1;
+    background: var(--bronce-suave);
+    box-shadow: inset 3px 0 0 var(--dorado-claro);
+    font-weight: 500;
+}
+.sidebar-item:focus-visible, .sidebar-marca:focus-visible {
+    outline: 2px solid var(--dorado-claro);
+    outline-offset: -2px;
+    opacity: 1;
+}
 .sidebar-item svg {
     width: 20px;
     height: 20px;
@@ -108,6 +147,23 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .encabezado h1 { margin: 0; font-size: 24px; font-weight: 600; color: var(--texto); }
+/* Boton de las tres rayas: oculto en escritorio, visible en celular. */
+.menu-boton {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--bronce);
+    cursor: pointer;
+}
+.menu-boton svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.menu-boton:focus-visible { outline: 2px solid var(--dorado); outline-offset: 2px; }
+.menu-fondo { display: none; }
 .encabezado-acciones { display: flex; gap: 10px; align-items: center; }
 
 .contenido { flex: 1; padding: 32px; }
@@ -167,7 +223,29 @@ body {
 }
 .kpi-icono svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+a.kpi { text-decoration: none; }
+a.kpi:hover { border-color: var(--tinte-borde); }
+
 .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+/* Colores de texto y de barra segun el estado (ver variables arriba) */
+.texto-marca { color: var(--dorado); }
+.texto-ok { color: var(--estado-ok); }
+.texto-aviso { color: var(--estado-aviso); }
+.texto-peligro { color: var(--estado-peligro); }
+.enlace-marca { color: var(--dorado); font-weight: 600; text-decoration: none; }
+.enlace-marca:hover { text-decoration: underline; }
+.progreso-ok { background: var(--estado-ok); }
+.progreso-aviso { background: var(--estado-aviso); }
+.progreso-peligro { background: var(--estado-peligro); }
+.progreso-info { background: var(--estado-info); }
+
+.tarjeta h3.con-espacio { margin-top: 28px; }
+.tarjeta-fila { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.linea-resumen { margin: 4px 0 0; }
+.nota.nota-superior { margin: 0 0 18px; }
+.acciones-centro { justify-content: center; }
+.conteo-estados { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 
 /* ================= Barra de herramientas (nuevo + buscar + filtros) ================= */
 .herramientas {
@@ -491,14 +569,71 @@ body {
 .error-tarjeta h1 { margin: 12px 0 8px; font-size: 20px; font-weight: 600; }
 .error-tarjeta p { margin: 0 0 24px; font-size: 14px; color: var(--texto-suave); }
 
-/* ================= Pantallas pequenas ================= */
+/* ================= Pantallas pequenas (tabletas y celulares) =================
+   Hasta 900px de ancho el menu lateral deja de ocupar espacio: queda
+   escondido a la izquierda, fuera de la pantalla, y se desliza hacia
+   dentro cuando <body> tiene la clase "menu-abierto" (la pone el boton
+   de las tres rayas, ver static/js/arkhe.js). */
 @media (max-width: 900px) {
-    .layout { flex-direction: column; }
-    .sidebar { width: 100%; height: auto; position: static; padding: 12px 0; }
-    .sidebar-marca { margin-bottom: 12px; }
-    .sidebar-menu { flex-direction: row; flex-wrap: wrap; gap: 4px; }
-    .sidebar-item { padding: 8px 10px; font-size: 13px; }
-    .sidebar-item svg { width: 16px; height: 16px; }
-    .encabezado, .contenido { padding-left: 16px; padding-right: 16px; }
+    .menu-boton { display: inline-flex; }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 30;
+        width: 260px;
+        max-width: 82vw;
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
+        transform: translateX(-100%);
+        visibility: hidden;          /* oculto tambien para el teclado */
+        transition: transform 0.25s ease, visibility 0.25s;
+    }
+    .menu-abierto .sidebar { transform: translateX(0); visibility: visible; }
+
+    .menu-fondo {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        background: rgba(31, 41, 55, 0.45);
+    }
+    .menu-abierto .menu-fondo { display: block; }
+    .menu-abierto { overflow: hidden; }   /* la pagina de atras no se desplaza */
+
+    .encabezado { padding: 12px 16px; gap: 12px; }
+    .encabezado h1 { font-size: 20px; flex: 1; min-width: 0; }
+    .contenido { padding: 20px 16px; }
+    .pie { padding: 16px; }
     .fila-2, .form-grid { grid-template-columns: 1fr; }
+    .herramientas { padding: 12px 16px; }
+}
+
+/* Celulares: una sola columna y botones comodos para el dedo */
+@media (max-width: 600px) {
+    .sesion-datos { display: none; }          /* queda solo "Cerrar sesion" */
+    .encabezado h1 { font-size: 18px; }
+    .kpis { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .kpi { padding: 16px; }
+    .kpi-valor { font-size: 22px; }
+    .kpi-valor.dinero { font-size: 17px; }
+    .kpi-icono { display: none; }
+    .tarjeta { padding: 16px; }
+    .tarjeta-sin-padding { padding: 0; }
+    .herramientas { flex-direction: column; align-items: stretch; }
+    .herramientas input[type="search"] { min-width: 0; }
+    .herramientas .btn { text-align: center; }
+    .form-actions { flex-direction: column-reverse; }
+    .form-actions .btn { width: 100%; text-align: center; }
+    .btn-sm { padding: 8px 12px; font-size: 13px; }
+    .pie-tabla { flex-direction: column; align-items: flex-start; }
+    .grafico { gap: 6px; height: 160px; }
+    .grafico-etiquetas { gap: 6px; }
+    .login-tarjeta { padding: 32px 22px; }
+}
+
+/* Quien pide menos animaciones en su sistema no ve el deslizamiento */
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
 }

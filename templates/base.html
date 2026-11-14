@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ARKHE{% endblock %}</title>
+  <title>{% block title %}Sistema de gestión inmobiliaria{% endblock %}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo-arkhe-marca.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/arkhe.css') }}">
 </head>
 <body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
   {% from "_componentes.html" import alertas %}
   {#
     Plantilla base de TODOS los modulos (GA7-AA5-EV03).
@@ -28,27 +29,34 @@
   ] %}
 
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="menuLateral">
       <a class="sidebar-marca" href="{{ url_for('dashboard.inicio') }}">
         <span class="sidebar-logo">
-          <img src="{{ url_for('static', filename='img/logo-arkhe-marca.png') }}" alt="Logo ARKHE">
+          <img src="{{ url_for('static', filename='img/logo-arkhe-marca.png') }}" alt="">
         </span>
         <span>ARKHE</span>
       </a>
-      <nav class="sidebar-menu">
+      <nav class="sidebar-menu" aria-label="Menú principal">
         {# Solo se muestran los modulos que el rol puede consultar. #}
         {% for clave, endpoint, texto, icono in menu if puede(clave, 'ver') %}
-        <a href="{{ url_for(endpoint) }}" class="sidebar-item {{ 'activo' if seccion == clave }}">
+        <a href="{{ url_for(endpoint) }}" class="sidebar-item {{ 'activo' if seccion == clave }}" {% if seccion == clave %}aria-current="page"{% endif %}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ icono }}"/></svg>
           <span>{{ texto }}</span>
         </a>
         {% endfor %}
       </nav>
     </aside>
+    {# Fondo oscuro detras del menu cuando esta abierto en celular; al tocarlo se cierra. #}
+    <div class="menu-fondo" data-cerrar-menu></div>
 
     <div class="principal">
       <header class="encabezado">
-        <h1>{% block titulo_pagina %}ARKHE{% endblock %}</h1>
+        {# Boton del menu: solo se ve en pantallas pequenas (ver arkhe.css). #}
+        <button type="button" class="menu-boton" data-alternar-menu aria-controls="menuLateral"
+                aria-expanded="false" aria-label="Abrir o cerrar el menú">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <h1>{% block titulo_pagina %}Sistema de gestión inmobiliaria{% endblock %}</h1>
         <div class="encabezado-acciones">{% block acciones %}{% endblock %}</div>
         {# Usuario conectado y cierre de sesion (POST, no enlace). #}
         {% if usuario_actual %}
@@ -65,7 +73,7 @@
         {% endif %}
       </header>
 
-      <main class="contenido">
+      <main class="contenido" id="contenido" tabindex="-1">
         {# Si la pagina se muestra con un modal abierto por un error (abrir_modal),
            los mensajes se dibujan dentro del modal: aqui quedarian tapados. #}
         {% if not abrir_modal %}{{ alertas() }}{% endif %}
@@ -73,7 +81,7 @@
         {% block content %}{% endblock %}
       </main>
 
-      <footer class="pie">ARKHE &middot; Sistema de Gestion Inmobiliaria</footer>
+      <footer class="pie">Sistema de gestión inmobiliaria</footer>
     </div>
   </div>
 

@@ -43,7 +43,7 @@ def validar_datos_pago(form, pago=None):
 
     fecha = a_fecha(form.get("fecha_pago"))
     if fecha is None:
-        errores.append("La fecha de pago es obligatoria y debe ser valida.")
+        errores.append("La fecha de pago es obligatoria y debe ser válida.")
     elif es_fecha_futura(fecha):
         errores.append("La fecha de pago no puede ser futura.")
     elif venta is not None and fecha < venta.fecha_venta:
@@ -51,7 +51,7 @@ def validar_datos_pago(form, pago=None):
 
     monto = a_decimal(form.get("monto"))
     if monto is None or monto <= 0:
-        errores.append("El monto debe ser un numero mayor que 0 (sin puntos de miles).")
+        errores.append("El monto debe ser un número mayor que 0 (sin puntos de miles).")
     elif venta is not None:
         saldo_disponible = venta.saldo
         if pago is not None and pago.id_venta == venta.id_venta:
@@ -61,7 +61,7 @@ def validar_datos_pago(form, pago=None):
 
     metodo = (form.get("metodo_pago") or "").strip()
     if metodo not in METODOS_PAGO:
-        errores.append("Seleccione un metodo de pago valido.")
+        errores.append("Seleccione un método de pago válido.")
 
     datos = dict(id_venta=id_venta, fecha_pago=fecha, monto=monto, metodo_pago=metodo)
     return errores, datos

@@ -67,13 +67,13 @@ def _validar_datos_cliente(form):
     elif not validar_lengitud(form.get("apellido", ""), max_len=100):
         errores.append("El apellido no puede exceder 100 caracteres.")
     if not es_documento_valido(form.get("documento", "")):
-        errores.append("El documento debe contener solo numeros (6 a 15 digitos).")
+        errores.append("El documento debe contener solo números (6 a 15 dígitos).")
     if not es_correo_valido(form.get("correo", "")):
-        errores.append("El correo electronico no tiene un formato valido.")
+        errores.append("El correo electrónico no tiene un formato válido.")
     elif not validar_lengitud(form.get("correo", ""), max_len=150):
-        errores.append("El correo electronico no puede exceder 150 caracteres.")
+        errores.append("El correo electrónico no puede exceder 150 caracteres.")
     if not es_telefono_valido(form.get("telefono", "")):
-        errores.append("El telefono debe contener solo numeros (7 a 15 digitos).")
+        errores.append("El teléfono debe contener solo números (7 a 15 dígitos).")
 
     return errores
 

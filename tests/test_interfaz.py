@@ -168,8 +168,8 @@ def test_in09_cliente_invalido_reabre_el_modal_con_lo_escrito(app, api, datos):
         assert f'value="{valor}"' in pagina
     # El error se muestra DENTRO del modal (fuera quedaria tapado), una sola vez.
     modal = pagina[pagina.index('id="modalNuevo"'):]
-    assert "El telefono debe contener solo numeros" in modal
-    assert pagina.count("El telefono debe contener solo numeros") == 1
+    assert "El teléfono debe contener solo números" in modal
+    assert pagina.count("El teléfono debe contener solo números") == 1
     with app.app_context():
         assert Cliente.query.filter_by(documento="55667788").count() == 0
 
@@ -201,3 +201,254 @@ def test_in12_el_listado_normal_no_abre_el_modal(api, datos):
         pagina = html(api, ruta)
         assert 'class="modal-overlay" id="modalNuevo"' in pagina
         assert "modal-overlay abierto" not in pagina
+
+
+# =====================================================================
+# T5b: textos, accesibilidad, CSP, proyectos y resumen unico
+#
+#   IN-13..IN-14  Tildes y titulos sin repetir la marca
+#   IN-15..IN-16  Content Security Policy y cero JavaScript en linea
+#   IN-17..IN-19  Accesibilidad y diseño para celular
+#   IN-20..IN-22  Proyectos: propietario / promotor y conteo calculado
+#   IN-23..IN-24  Dashboard y /api/resumen usan el mismo calculo
+# =====================================================================
+PANTALLAS = ["/"] + LISTADOS + ["/clientes/1/editar", "/usuarios/1/editar", "/proyectos/nuevo",
+                                "/proyectos/1/editar", "/apartamentos/nuevo", "/apartamentos/1/editar",
+                                "/ventas/nueva", "/pagos/nuevo"]
+
+SIN_TILDE = ["Gestion ", "Telefono", "Numero ", "electronico", "Metodo", "Direccion",
+             "Descripcion", "Ubicacion", "Ultimas", "Ultimos", "ultimos", "Minimo",
+             ">Area", "Aun no", "automaticamente", " modulo ", "Sesion"]
+
+
+def texto_visible(pagina):
+    """Quita etiquetas y atributos: deja solo lo que la persona lee."""
+    return re.sub(r"<[^>]+>", " ", pagina)
+
+
+def test_in13_textos_con_tilde_en_todas_las_pantallas(api, datos):
+    entrar_como(api, ADMIN)
+    for ruta in PANTALLAS:
+        pagina = html(api, ruta)
+        visible = texto_visible(pagina) + " ".join(re.findall(r'(?:placeholder|title|aria-label)="([^"]*)"', pagina))
+        for palabra in SIN_TILDE:
+            assert palabra not in visible, f"{ruta}: falta la tilde en '{palabra.strip()}'"
+
+
+def test_in14_la_marca_no_se_repite_en_titulos_ni_menu(api, datos):
+    entrar_como(api, ADMIN)
+    for ruta in PANTALLAS:
+        pagina = html(api, ruta)
+        titulo = re.search(r"<title>(.*?)</title>", pagina, flags=re.S).group(1)
+        encabezado = re.search(r"<h1>(.*?)</h1>", pagina, flags=re.S).group(1)
+        assert "ARKHE" not in titulo and "ARKHE" not in encabezado, ruta
+        assert titulo.strip() and encabezado.strip()
+        # Aparece una sola vez en toda la pagina: junto al logo del menu.
+        assert texto_visible(pagina).count("ARKHE") == 1, ruta
+
+
+def test_in15_cabecera_csp(api, datos):
+    for respuesta in (api.get("/login"), api.get("/api/clientes")):
+        csp = respuesta.headers["Content-Security-Policy"]
+        directivas = dict(parte.strip().split(" ", 1) for parte in csp.split(";"))
+        assert directivas["default-src"] == "'self'"
+        assert directivas["script-src"] == "'self'"          # sin 'unsafe-inline' ni 'unsafe-eval'
+        assert directivas["object-src"] == "'none'"
+        assert directivas["frame-ancestors"] == "'none'"
+        assert directivas["form-action"] == "'self'"
+
+
+def test_in16_ninguna_pantalla_tiene_script_en_linea(api, datos):
+    """Con script-src 'self' el navegador bloquearia cualquier <script>
+    sin archivo: esta prueba avisa antes de que algo deje de funcionar."""
+    entrar_como(api, ADMIN)
+    for ruta in PANTALLAS + ["/no-existe"]:
+        pagina = api.get(ruta).get_data(as_text=True)
+        for etiqueta in re.findall(r"<script\b[^>]*>", pagina):
+            assert 'src="/static/js/' in etiqueta, f"{ruta}: script en linea"
+    api.post("/logout")
+    assert "<script>" not in api.get("/login").get_data(as_text=True)
+
+
+def test_in17_cada_campo_tiene_su_etiqueta(api, datos):
+    """Accesibilidad: todo campo visible tiene <label for="..."> o aria-label."""
+    entrar_como(api, ADMIN)
+    for ruta in PANTALLAS:
+        pagina = html(api, ruta)
+        etiquetas = set(re.findall(r'<label[^>]*\bfor="([^"]+)"', pagina))
+        for campo in re.findall(r"<(?:input|select|textarea)\b[^>]*>", pagina):
+            if 'type="hidden"' in campo:
+                continue
+            identificador = re.search(r'\bid="([^"]+)"', campo)
+            con_etiqueta = identificador and identificador.group(1) in etiquetas
+            assert con_etiqueta or "aria-label=" in campo, f"{ruta}: campo sin etiqueta -> {campo[:90]}"
+
+
+def test_in18_menu_accesible_y_plegable(api, datos):
+    entrar_como(api, ADMIN)
+    pagina = html(api, "/ventas/")
+    assert 'href="#contenido"' in pagina and 'id="contenido"' in pagina        # saltar al contenido
+    assert 'aria-label="Menú principal"' in pagina
+    # Solo la opcion del modulo actual se marca como pagina actual.
+    assert pagina.count('aria-current="page"') == 1
+    assert re.search(r'href="/ventas/"[^>]*aria-current="page"', pagina)
+    # Boton del menu para celular, enlazado con el menu que controla.
+    boton = re.search(r"<button[^>]*data-alternar-menu[^>]*>", pagina).group(0)
+    assert 'aria-controls="menuLateral"' in boton and 'aria-expanded="false"' in boton
+    assert 'id="menuLateral"' in pagina and "data-cerrar-menu" in pagina
+
+
+def test_in19_estilos_paleta_completa_y_vista_de_celular(api):
+    css = api.get("/static/css/arkhe.css").get_data(as_text=True)
+    for color in ("#3A2F20", "#6E5A3C", "#8A6F52", "#C9A876", "#F3ECDD", "#E4D6BA", "#4A3B26"):
+        assert color in css, f"falta el color {color} de la paleta"
+    assert "@media (max-width: 900px)" in css and ".menu-abierto .sidebar" in css
+    assert "prefers-reduced-motion" in css
+    # Los CSS antiguos que nadie cargaba ya no existen.
+    assert api.get("/static/css/clientes.css").status_code == 404
+    assert api.get("/static/css/usuarios.css").status_code == 404
+
+
+def test_in20_proyecto_aclara_que_el_cliente_es_el_propietario(api, datos):
+    entrar_como(api, ADMIN)
+    formulario = html(api, "/proyectos/nuevo")
+    assert "Cliente propietario / promotor *" in formulario
+    assert "no un comprador" in formulario
+    assert "<th>Propietario / promotor</th>" in html(api, "/proyectos/")
+
+
+def _agregar_apartamentos(id_proyecto):
+    from models.apartamento import Apartamento
+
+    for numero, estado in (("102", "reservado"), ("103", "vendido"), ("104", "vendido")):
+        db.session.add(Apartamento(id_proyecto=id_proyecto, numero_apartamento=numero,
+                                   area_m2=50, habitaciones=2, banos=1, precio=1000, estado=estado))
+    db.session.commit()
+
+
+def test_in21_resumen_de_apartamentos_del_proyecto_es_calculado(app, datos):
+    with app.app_context():
+        proyecto = db.session.get(Proyecto, datos["id_proyecto"])
+        assert proyecto.resumen_apartamentos == {"total": 1, "disponible": 1, "reservado": 0, "vendido": 0}
+
+        _agregar_apartamentos(proyecto.id_proyecto)
+        # Sin guardar nada extra: el conteo cambia solo porque cambiaron los apartamentos.
+        assert proyecto.resumen_apartamentos == {"total": 4, "disponible": 1, "reservado": 1, "vendido": 2}
+        # No es una columna de la tabla.
+        assert "resumen_apartamentos" not in Proyecto.__table__.columns
+
+
+def test_in22_listado_de_proyectos_muestra_el_conteo_por_estado(app, api, datos):
+    with app.app_context():
+        _agregar_apartamentos(datos["id_proyecto"])
+    entrar_como(api, GERENTE)
+    visible = " ".join(texto_visible(html(api, "/proyectos/")).split())
+    assert "4 en total" in visible
+    assert "1 disponible 1 reservado 2 vendidos" in visible
+
+
+CLAVES_RESUMEN = ["clientes", "usuarios", "proyectos", "apartamentos", "ventas",
+                  "valor_vendido", "recaudado", "saldo_por_cobrar"]
+
+
+def _venta_con_abono(api, datos):
+    venta = api.post("/api/ventas", json={"id_cliente": datos["id_cliente"],
+                                          "id_apartamento": datos["id_apartamento"],
+                                          "fecha_venta": datos["fecha_venta"],
+                                          "valor_venta": 200000000}).get_json()
+    api.post("/api/pagos", json={"id_venta": venta["id_venta"], "fecha_pago": datos["fecha_pago"],
+                                 "monto": 50000000, "metodo_pago": "Efectivo"})
+
+
+def test_in23_api_resumen_conserva_su_contrato_y_usa_el_calculo_comun(app, api, datos):
+    from utils.resumen import calcular_resumen
+
+    entrar_como(api, ADMIN)
+    _venta_con_abono(api, datos)
+
+    cuerpo = api.get("/api/resumen").get_json()
+    assert list(cuerpo.keys()) == CLAVES_RESUMEN                     # mismas claves, mismo orden
+    assert cuerpo["apartamentos"] == {"disponible": 0, "reservado": 0, "vendido": 1}
+    assert cuerpo["ventas"] == {"pendiente": 0, "en-pago": 1, "pagada": 0}
+    assert (cuerpo["valor_vendido"], cuerpo["recaudado"], cuerpo["saldo_por_cobrar"]) == (200000000, 50000000, 150000000)
+    assert (cuerpo["clientes"], cuerpo["usuarios"], cuerpo["proyectos"]) == (1, 3, 1)
+
+    with app.app_context():
+        cifras = calcular_resumen()
+    assert {clave: float(valor) if clave in CLAVES_RESUMEN[5:] else valor
+            for clave, valor in cifras.items()} == cuerpo
+
+
+def test_in24_el_dashboard_muestra_las_mismas_cifras_que_la_api(api, datos):
+    entrar_como(api, ADMIN)
+    _venta_con_abono(api, datos)
+    visible = " ".join(texto_visible(html(api, "/")).split())
+    assert "$200.000.000" in visible          # valor vendido
+    assert "$50.000.000" in visible           # recaudado
+    assert "$150.000.000" in visible          # saldo por cobrar
+    assert "25% del valor vendido" in visible
+
+
+# ---------------------------------------------------------------------
+# IN-25..IN-27  Tildes en mensajes de validacion y metodos de pago
+# ---------------------------------------------------------------------
+def test_in25_los_mensajes_de_validacion_llevan_tilde(api, datos):
+    """Los mismos mensajes salen por la pantalla y por la API."""
+    entrar_como(api, ADMIN)
+    errores = api.post("/api/clientes", json={"nombre": "Eva", "apellido": "Diaz", "documento": "abc",
+                                              "correo": "sin-arroba", "telefono": "12"}).get_json()["errores"]
+    assert errores == [
+        "El documento debe contener solo números (6 a 15 dígitos).",
+        "El correo electrónico no tiene un formato válido.",
+        "El teléfono debe contener solo números (7 a 15 dígitos).",
+    ]
+    apartamento = api.post("/api/apartamentos", json={}).get_json()["errores"]
+    assert "El número de apartamento es obligatorio." in apartamento
+    assert "El área debe ser un número mayor que 0 y hasta 9999.99 m²." in apartamento
+    assert "Los baños deben ser un número entero entre 1 y 10." in apartamento
+
+
+@pytest.mark.parametrize("guardado, mostrado", [
+    ("Tarjeta de credito", "Tarjeta de crédito"),
+    ("Tarjeta debito", "Tarjeta débito"),
+    ("Credito hipotecario", "Crédito hipotecario"),
+    ("Efectivo", "Efectivo"),                 # sin traduccion: se muestra igual
+    ("Otro metodo", "Otro metodo"),           # desconocido: tampoco falla
+])
+def test_in26_etiqueta_de_metodo_de_pago(guardado, mostrado):
+    from utils.formato import etiqueta_metodo
+
+    assert etiqueta_metodo(guardado) == mostrado
+
+
+def test_in27_el_metodo_se_muestra_con_tilde_pero_se_guarda_igual(app, api, datos):
+    from models.pago import METODOS_PAGO, Pago
+
+    entrar_como(api, ADMIN)
+    venta = api.post("/api/ventas", json={"id_cliente": datos["id_cliente"],
+                                          "id_apartamento": datos["id_apartamento"],
+                                          "fecha_venta": datos["fecha_venta"],
+                                          "valor_venta": 200000000}).get_json()
+    # El formulario envia el valor guardado (sin tilde), no la etiqueta.
+    respuesta = api.post("/pagos/crear", data={"id_venta": venta["id_venta"], "fecha_pago": datos["fecha_pago"],
+                                               "monto": "1000", "metodo_pago": "Tarjeta de credito"})
+    assert respuesta.status_code == 302
+
+    # La base y la API conservan el valor original.
+    assert "Tarjeta de credito" in METODOS_PAGO
+    with app.app_context():
+        assert Pago.query.one().metodo_pago == "Tarjeta de credito"
+    assert api.get("/api/pagos").get_json()[0]["metodo_pago"] == "Tarjeta de credito"
+    # ...y la API sigue rechazando la version con tilde: su contrato no cambio.
+    con_tilde = api.post("/api/pagos", json={"id_venta": venta["id_venta"], "fecha_pago": datos["fecha_pago"],
+                                             "monto": 1000, "metodo_pago": "Tarjeta de crédito"})
+    assert con_tilde.status_code == 400
+
+    # Las pantallas lo muestran con tilde; el value del filtro y del formulario sigue igual.
+    lista = html(api, "/pagos/")
+    assert "<td>Tarjeta de crédito</td>" in lista
+    assert '<option value="Tarjeta de credito">Tarjeta de crédito</option>' in lista
+    assert 'data-filtro-metodo="Tarjeta de credito"' in lista
+    formulario = html(api, "/pagos/nuevo")
+    assert re.search(r'<option value="Tarjeta de credito"\s*>Tarjeta de crédito</option>', formulario)
+    assert "Tarjeta de crédito" in html(api, "/")          # ultimos pagos del dashboard

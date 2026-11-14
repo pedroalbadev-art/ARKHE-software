@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% from "_componentes.html" import alertas, estado_vacio %}
 
-{% block title %}Usuarios - ARKHE{% endblock %}
-{% block titulo_pagina %}Gestion de Usuarios{% endblock %}
+{% block title %}Usuarios{% endblock %}
+{% block titulo_pagina %}Gestión de Usuarios{% endblock %}
 
 {% block content %}
   <div class="herramientas">
-    <input type="search" id="buscador" placeholder="Buscar por nombre o correo...">
+    <input type="search" id="buscador" aria-label="Buscar en la tabla" placeholder="Buscar por nombre o correo...">
     <select data-filtro="rol" aria-label="Filtrar por rol">
       <option value="">Todos los roles</option>
       {% for rol in roles %}<option value="{{ rol }}">{{ rol }}</option>{% endfor %}
@@ -28,7 +28,7 @@
           <tr>
             <th>ID</th>
             <th>Nombre completo</th>
-            <th>Correo electronico</th>
+            <th>Correo electrónico</th>
             <th>Rol</th>
             <th class="centro">Estado</th>
             <th class="centro">Acciones</th>
@@ -43,7 +43,7 @@
             <td><span class="badge badge-{{ usuario.rol|lower }}">{{ usuario.rol }}</span></td>
             <td class="centro"><span class="badge badge-{{ usuario.estado }}">{{ usuario.estado }}</span></td>
             <td>
-              <div class="acciones" style="justify-content:center;">
+              <div class="acciones acciones-centro">
                 {# Activar / desactivar: el Administrador a cualquiera; el Gerente solo a Vendedores. Nadie a su propia cuenta. #}
                 {% if puede_cambiar_estado(usuario) and usuario.id_usuario != usuario_actual.id_usuario %}
                 <form action="{{ url_for('usuarios.cambiar_estado_usuario', id_usuario=usuario.id_usuario) }}" method="post"
@@ -97,17 +97,17 @@
         </div>
         <div class="form-group">
           <label for="nuevo-apellido">Apellido</label>
-          <input type="text" id="nuevo-apellido" name="apellido" value="{{ valores.apellido }}" maxlength="100" placeholder="Ej: Ramirez Torres" required
+          <input type="text" id="nuevo-apellido" name="apellido" value="{{ valores.apellido }}" maxlength="100" placeholder="Ej: Ramírez Torres" required
                  pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
         </div>
         <div class="form-group">
-          <label for="nuevo-correo">Correo electronico</label>
+          <label for="nuevo-correo">Correo electrónico</label>
           <input type="email" id="nuevo-correo" name="correo" value="{{ valores.correo }}" maxlength="150" placeholder="laura.ramirez@arkhe.com" required>
         </div>
         <div class="form-group">
           <label for="nuevo-contrasena">Contraseña</label>
           {# La contraseña nunca se devuelve al formulario: hay que escribirla de nuevo. #}
-          <input type="password" id="nuevo-contrasena" name="contrasena" placeholder="Minimo 8 caracteres" minlength="8" autocomplete="new-password" required>
+          <input type="password" id="nuevo-contrasena" name="contrasena" placeholder="Mínimo 8 caracteres" minlength="8" autocomplete="new-password" required>
         </div>
         <div class="form-group">
           <label for="nuevo-rol">Rol</label>

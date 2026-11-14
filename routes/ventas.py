@@ -53,11 +53,11 @@ def validar_datos_venta(form, venta=None):
     elif venta is None or venta.id_apartamento != apartamento.id_apartamento:
         # Es una venta nueva o se cambio de apartamento: debe estar libre.
         if not apartamento.puede_venderse:
-            errores.append(f"El apartamento '{apartamento.numero_apartamento}' no esta disponible para la venta.")
+            errores.append(f"El apartamento '{apartamento.numero_apartamento}' no está disponible para la venta.")
 
     fecha = a_fecha(form.get("fecha_venta"))
     if fecha is None:
-        errores.append("La fecha de venta es obligatoria y debe ser valida.")
+        errores.append("La fecha de venta es obligatoria y debe ser válida.")
     elif es_fecha_futura(fecha):
         errores.append("La fecha de venta no puede ser futura.")
     elif venta is not None and venta.pagos and fecha > min(p.fecha_pago for p in venta.pagos):
@@ -65,7 +65,7 @@ def validar_datos_venta(form, venta=None):
 
     valor = a_decimal(form.get("valor_venta"))
     if valor is None or valor <= 0 or valor > MAXIMO_DECIMAL_15_2:
-        errores.append("El valor de venta debe ser un numero mayor que 0 (sin puntos de miles).")
+        errores.append("El valor de venta debe ser un número mayor que 0 (sin puntos de miles).")
     elif venta is not None and valor < venta.total_pagado:
         errores.append("El valor de venta no puede ser menor que lo ya pagado por el cliente.")
 
@@ -191,7 +191,7 @@ def eliminar_venta(id):
             venta.apartamento.estado = "disponible"
             db.session.delete(venta)
             db.session.commit()
-            flash(f"Venta #{id} eliminada. El apartamento volvio a estar disponible.", "exito")
+            flash(f"Venta #{id} eliminada. El apartamento volvió a estar disponible.", "exito")
         except Exception:
             db.session.rollback()
             current_app.logger.exception("Error al eliminar la venta")
