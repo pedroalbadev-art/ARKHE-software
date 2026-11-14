@@ -29,11 +29,13 @@ from sqlalchemy.exc import IntegrityError
 
 from models import db
 from models.cliente import Cliente
+from utils.seguridad import rol_requerido
 from utils.validaciones import (
     es_correo_valido,
     es_documento_valido,
     es_telefono_valido,
     es_texto_valido,
+    validar_lengitud,
 )
 
 # No se personaliza template_folder: se usa la carpeta de plantillas
@@ -52,29 +54,54 @@ def _validar_datos_cliente(form):
     lista de mensajes de error (vacia si todo es valido)."""
     errores = []
 
+    # Las longitudes maximas son las de las columnas de la tabla
+    # (nombre y apellido VARCHAR(100), correo VARCHAR(150)). Se validan
+    # aqui para responder con un mensaje claro en vez de un error de
+    # base de datos.
     if not es_texto_valido(form.get("nombre", "")):
         errores.append("El nombre solo puede contener letras y espacios.")
+    elif not validar_lengitud(form.get("nombre", ""), max_len=100):
+        errores.append("El nombre no puede exceder 100 caracteres.")
     if not es_texto_valido(form.get("apellido", "")):
         errores.append("El apellido solo puede contener letras y espacios.")
+    elif not validar_lengitud(form.get("apellido", ""), max_len=100):
+        errores.append("El apellido no puede exceder 100 caracteres.")
     if not es_documento_valido(form.get("documento", "")):
-        errores.append("El documento debe contener solo numeros (6 a 15 digitos).")
+        errores.append("El documento debe contener solo números (6 a 15 dígitos).")
     if not es_correo_valido(form.get("correo", "")):
-        errores.append("El correo electronico no tiene un formato valido.")
+        errores.append("El correo electrónico no tiene un formato válido.")
+    elif not validar_lengitud(form.get("correo", ""), max_len=150):
+        errores.append("El correo electrónico no puede exceder 150 caracteres.")
     if not es_telefono_valido(form.get("telefono", "")):
-        errores.append("El telefono debe contener solo numeros (7 a 15 digitos).")
+        errores.append("El teléfono debe contener solo números (7 a 15 dígitos).")
 
     return errores
 
 
 @clientes_bp.route("/")
+@rol_requerido("clientes", "ver")
 def listar_clientes():
     """Muestra la tabla con todos los clientes registrados, ordenados
     alfabeticamente por nombre."""
+    return _lista()
+
+
+def _lista(valores=None):
+    """Dibuja el listado. `valores` son los datos que la persona escribio
+    en el modal "Nuevo Cliente" cuando hubo un error: si llegan, la
+    pagina se muestra con el modal abierto y esos datos puestos, para
+    que solo corrija lo que fallo en vez de escribir todo de nuevo."""
     clientes = Cliente.query.order_by(Cliente.nombre).all()
-    return render_template("clientes/lista.html", clientes=clientes)
+    return render_template(
+        "clientes/lista.html",
+        clientes=clientes,
+        valores=valores or {},
+        abrir_modal=valores is not None,
+    )
 
 
 @clientes_bp.route("/nuevo", methods=["POST"])
+@rol_requerido("clientes", "editar")
 def crear_cliente():
     """Valida y crea un nuevo cliente a partir del formulario modal
     'Nuevo Cliente' (definido en lista.html). Si hay errores de
@@ -84,7 +111,8 @@ def crear_cliente():
     if errores:
         for error in errores:
             flash(error, "error")
-        return redirect(url_for("clientes.listar_clientes"))
+        # Se vuelve a mostrar la lista con el modal abierto y lo escrito.
+        return _lista(valores=request.form)
 
     nuevo_cliente = Cliente(
         nombre=request.form["nombre"].strip(),
@@ -100,13 +128,14 @@ def crear_cliente():
     except IntegrityError:
         db.session.rollback()
         flash("Ya existe un cliente registrado con ese documento o correo.", "error")
-        return redirect(url_for("clientes.listar_clientes"))
+        return _lista(valores=request.form)
 
     flash(f"Cliente '{nuevo_cliente.nombre_completo}' creado correctamente.", "exito")
     return redirect(url_for("clientes.listar_clientes"))
 
 
 @clientes_bp.route("/<int:id_cliente>/editar", methods=["GET"])
+@rol_requerido("clientes", "editar")
 def editar_cliente(id_cliente):
     """Muestra el formulario de edicion precargado con los datos
     actuales del cliente indicado.
@@ -120,6 +149,7 @@ def editar_cliente(id_cliente):
 
 
 @clientes_bp.route("/<int:id_cliente>/editar", methods=["POST"])
+@rol_requerido("clientes", "editar")
 def actualizar_cliente(id_cliente):
     """Valida y guarda los cambios enviados desde el formulario de
     edicion."""
@@ -149,6 +179,7 @@ def actualizar_cliente(id_cliente):
 
 
 @clientes_bp.route("/<int:id_cliente>/eliminar", methods=["POST"])
+@rol_requerido("clientes", "eliminar")
 def eliminar_cliente(id_cliente):
     """Elimina un cliente de la base de datos.
 
@@ -158,6 +189,12 @@ def eliminar_cliente(id_cliente):
     que cambian datos a traves de enlaces simples.
     """
     cliente = Cliente.query.get_or_404(id_cliente)
+    # Misma regla que la API: un cliente con proyectos o ventas no se
+    # elimina. Sin esta comprobacion, la llave foranea de MySQL
+    # rechazaria el borrado y la pagina terminaria en un error 500.
+    if cliente.proyectos or cliente.ventas:
+        flash("No se puede eliminar: el cliente tiene proyectos o ventas asociados.", "error")
+        return redirect(url_for("clientes.listar_clientes"))
     nombre_eliminado = cliente.nombre_completo
     db.session.delete(cliente)
     db.session.commit()

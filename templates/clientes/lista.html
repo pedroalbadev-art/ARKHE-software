@@ -1,12 +1,15 @@
 {% extends "base.html" %}
+{% from "_componentes.html" import alertas, estado_vacio %}
 
-{% block title %}Clientes - ARKHE{% endblock %}
-{% block titulo_pagina %}Gestion de Clientes{% endblock %}
+{% block title %}Clientes{% endblock %}
+{% block titulo_pagina %}Gestión de Clientes{% endblock %}
 
 {% block content %}
   <div class="herramientas">
-    <button type="button" class="btn btn-primary" onclick="abrirModal('modalNuevo')">+ Nuevo Cliente</button>
-    <input type="search" id="buscador" placeholder="Buscar cliente por nombre, documento, correo o telefono...">
+    {% if puede('clientes', 'editar') %}
+    <button type="button" class="btn btn-primary" data-abrir-modal="modalNuevo">+ Nuevo Cliente</button>
+    {% endif %}
+    <input type="search" id="buscador" aria-label="Buscar en la tabla" placeholder="Buscar cliente por nombre, documento, correo o teléfono...">
   </div>
 
   <div class="tarjeta tarjeta-sin-padding">
@@ -17,8 +20,8 @@
             <th>ID</th>
             <th>Nombre completo</th>
             <th>Documento</th>
-            <th>Correo electronico</th>
-            <th>Telefono</th>
+            <th>Correo electrónico</th>
+            <th>Teléfono</th>
             <th class="centro">Acciones</th>
           </tr>
         </thead>
@@ -31,17 +34,24 @@
             <td class="suave">{{ cliente.correo }}</td>
             <td class="suave">{{ cliente.telefono }}</td>
             <td>
-              <div class="acciones" style="justify-content:center;">
+              <div class="acciones acciones-centro">
+                {% if puede('clientes', 'editar') %}
                 <a class="btn btn-sm accion-editar" href="{{ url_for('clientes.editar_cliente', id_cliente=cliente.id_cliente) }}">Editar</a>
+                {% endif %}
+                {% if puede('clientes', 'eliminar') %}
                 <form action="{{ url_for('clientes.eliminar_cliente', id_cliente=cliente.id_cliente) }}" method="post"
-                      onsubmit="return confirm('¿Eliminar a {{ cliente.nombre_completo }}?');">
+                      data-confirmar="¿Eliminar a {{ cliente.nombre_completo }}?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="6" class="vacio">Aun no hay clientes registrados.</td></tr>
+          {{ estado_vacio(6, 'Aún no hay clientes registrados',
+                          'Registre el primer cliente para poder crear proyectos y ventas.',
+                          '+ Nuevo Cliente' if puede('clientes', 'editar'), modal='modalNuevo') }}
           {% endfor %}
         </tbody>
       </table>
@@ -51,40 +61,45 @@
     </div>
   </div>
 
+  {% if puede('clientes', 'editar') %}
   <!-- Modal "Nuevo Cliente" -->
-  <div class="modal-overlay" id="modalNuevo">
+  <div class="modal-overlay{{ ' abierto' if abrir_modal }}" id="modalNuevo" role="dialog" aria-modal="true" aria-labelledby="modalNuevoTitulo">
     <div class="modal-card">
       <div class="modal-header">
-        <h2>Nuevo Cliente</h2>
-        <button type="button" class="modal-cerrar" onclick="cerrarModal('modalNuevo')" aria-label="Cerrar">&times;</button>
+        <h2 id="modalNuevoTitulo">Nuevo Cliente</h2>
+        <button type="button" class="modal-cerrar" data-cerrar-modal aria-label="Cerrar">&times;</button>
       </div>
       <form method="post" action="{{ url_for('clientes.crear_cliente') }}" class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {# Errores del intento anterior, dentro del modal para que se vean. #}
+        {% if abrir_modal %}{{ alertas() }}{% endif %}
         <div class="form-group">
-          <label>Nombre</label>
-          <input type="text" name="nombre" placeholder="Ej: Maria" required
+          <label for="nuevo-nombre">Nombre</label>
+          <input type="text" id="nuevo-nombre" name="nombre" value="{{ valores.nombre }}" maxlength="100" placeholder="Ej: María" required
                  pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
         </div>
         <div class="form-group">
-          <label>Apellido</label>
-          <input type="text" name="apellido" placeholder="Ej: Garcia Lopez" required
+          <label for="nuevo-apellido">Apellido</label>
+          <input type="text" id="nuevo-apellido" name="apellido" value="{{ valores.apellido }}" maxlength="100" placeholder="Ej: García López" required
                  pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
         </div>
         <div class="form-group">
-          <label>Numero de documento</label>
-          <input type="text" name="documento" placeholder="Ej: 1045234567" required
-                 pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)">
+          <label for="nuevo-documento">Número de documento</label>
+          <input type="text" id="nuevo-documento" name="documento" value="{{ valores.documento }}" placeholder="Ej: 1045234567" required
+                 pattern="[0-9]{6,15}" title="Solo números (6 a 15 dígitos)">
         </div>
         <div class="form-group">
-          <label>Correo electronico</label>
-          <input type="email" name="correo" placeholder="maria.garcia@email.com" required>
+          <label for="nuevo-correo">Correo electrónico</label>
+          <input type="email" id="nuevo-correo" name="correo" value="{{ valores.correo }}" maxlength="150" placeholder="maria.garcia@email.com" required>
         </div>
         <div class="form-group">
-          <label>Telefono</label>
-          <input type="tel" name="telefono" placeholder="3151234567" required
-                 pattern="[0-9]{7,15}" title="Solo numeros (7 a 15 digitos)">
+          <label for="nuevo-telefono">Teléfono</label>
+          <input type="tel" id="nuevo-telefono" name="telefono" value="{{ valores.telefono }}" placeholder="3151234567" required
+                 pattern="[0-9]{7,15}" title="Solo números (7 a 15 dígitos)">
         </div>
         <button type="submit" class="btn btn-primary">Guardar cliente</button>
       </form>
     </div>
   </div>
+  {% endif %}
 {% endblock %}

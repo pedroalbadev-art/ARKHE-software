@@ -17,20 +17,21 @@ from decimal import Decimal
 
 from flask import Blueprint, render_template
 
-from models import db
-from models.apartamento import Apartamento
-from models.cliente import Cliente
 from models.pago import Pago
-from models.proyecto import Proyecto
 from models.usuario import Usuario
 from models.venta import Venta
-from utils.formato import formato_pesos
+from utils.formato import etiqueta_metodo, formato_pesos
+from utils.resumen import calcular_resumen
+from utils.seguridad import rol_requerido
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
 # Filtro {{ valor|pesos }} disponible en TODAS las plantillas de la app.
 dashboard_bp.add_app_template_filter(formato_pesos, "pesos")
+# Filtro {{ pago.metodo_pago|metodo }}: muestra el metodo con tilde sin
+# cambiar el valor guardado (ver utils/formato.py).
+dashboard_bp.add_app_template_filter(etiqueta_metodo, "metodo")
 
 
 MESES = ("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
@@ -57,16 +58,16 @@ def _ventas_ultimos_meses(ventas, cantidad=6):
 
 
 @dashboard_bp.route("/")
+@rol_requerido("dashboard", "ver")
 def inicio():
     ventas = Venta.query.all()
 
-    # Suma de una columna; coalesce evita None cuando la tabla esta vacia.
-    def suma(columna):
-        return db.session.query(db.func.coalesce(db.func.sum(columna), 0)).scalar()
-
-    total_vendido = Decimal(suma(Venta.valor_venta))
-    total_recaudado = Decimal(suma(Pago.monto))
-    total_apartamentos = Apartamento.query.count()
+    # Las cifras salen de la misma funcion que usa GET /api/resumen
+    # (utils/resumen.py): la pantalla y la API siempre coinciden.
+    resumen = calcular_resumen(ventas)
+    total_vendido = resumen["valor_vendido"]
+    total_recaudado = resumen["recaudado"]
+    total_apartamentos = sum(resumen["apartamentos"].values())
 
     # Alto de cada barra en % del mes con mas ventas (85% deja espacio
     # para la etiqueta del valor maximo encima de la barra).
@@ -78,22 +79,22 @@ def inicio():
     ]
 
     contexto = dict(
-        total_clientes=Cliente.query.count(),
-        total_usuarios=Usuario.query.count(),
+        total_clientes=resumen["clientes"],
+        total_usuarios=resumen["usuarios"],
         usuarios_activos=Usuario.query.filter_by(estado="activo").count(),
-        total_proyectos=Proyecto.query.count(),
+        total_proyectos=resumen["proyectos"],
         total_apartamentos=total_apartamentos,
         total_ventas=len(ventas),
         total_pagos=Pago.query.count(),
-        apartamentos_disponibles=Apartamento.query.filter_by(estado="disponible").count(),
-        apartamentos_reservados=Apartamento.query.filter_by(estado="reservado").count(),
-        apartamentos_vendidos=Apartamento.query.filter_by(estado="vendido").count(),
-        ventas_pendientes=sum(1 for v in ventas if v.estado == "pendiente"),
-        ventas_en_pago=sum(1 for v in ventas if v.estado == "en-pago"),
-        ventas_pagadas=sum(1 for v in ventas if v.estado == "pagada"),
+        apartamentos_disponibles=resumen["apartamentos"]["disponible"],
+        apartamentos_reservados=resumen["apartamentos"]["reservado"],
+        apartamentos_vendidos=resumen["apartamentos"]["vendido"],
+        ventas_pendientes=resumen["ventas"]["pendiente"],
+        ventas_en_pago=resumen["ventas"]["en-pago"],
+        ventas_pagadas=resumen["ventas"]["pagada"],
         total_vendido=total_vendido,
         total_recaudado=total_recaudado,
-        saldo_por_cobrar=total_vendido - total_recaudado,
+        saldo_por_cobrar=resumen["saldo_por_cobrar"],
         porcentaje_recaudado=round(total_recaudado * 100 / total_vendido) if total_vendido else 0,
         ventas_por_mes=ventas_por_mes,
         maximo_mes=maximo_mes,

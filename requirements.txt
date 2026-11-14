@@ -1,14 +1,21 @@
-# Dependencias del proyecto ARKHE.
+# Dependencias para EJECUTAR el sistema. Instalar con:
+#     pip install -r requirements.txt
 #
-# Flask: framework web.
-# Flask-SQLAlchemy: ORM que mapea las tablas de MySQL a clases Python
-#   (adoptado en la evidencia GA7-220501096-AA3-EV01, módulo de
-#   Clientes), en vez de escribir SQL a mano.
-# PyMySQL: driver que permite a SQLAlchemy hablar el protocolo de
-#   MySQL desde Python puro.
-# python-dotenv: carga las credenciales del archivo .env (ya usado
-#   desde la configuración inicial del entorno).
-Flask
-Flask-SQLAlchemy
-PyMySQL
-python-dotenv
+# Las versiones estan fijas (==) a las que se usaron para desarrollar y
+# probar: asi una instalacion futura obtiene exactamente lo mismo y no
+# una version mas nueva que podria comportarse distinto.
+#
+# Flask            framework web.
+# Flask-SQLAlchemy ORM: cada tabla de MySQL es una clase de Python.
+# Flask-WTF        solo se usa CSRFProtect (el token oculto que protege
+#                  los formularios contra ataques CSRF).
+# PyMySQL          driver con el que SQLAlchemy habla con MySQL.
+# cryptography     lo necesita PyMySQL para iniciar sesion en MySQL 8 con
+#                  su metodo por defecto (caching_sha2_password).
+# python-dotenv    lee las credenciales del archivo .env.
+Flask==3.1.3
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.3.0
+PyMySQL==1.2.0
+cryptography==50.0.2
+python-dotenv==1.2.3

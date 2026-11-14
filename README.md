@@ -1,203 +1,287 @@
-# ARKHE — Software de gestión inmobiliaria
+# ARKHE — Sistema de gestión inmobiliaria
 
-Aplicación web para administrar clientes, usuarios, proyectos inmobiliarios, apartamentos, ventas y pagos. Proyecto formativo del programa ADSO (SENA), ficha 3235890.
+Aplicación web para empresas que comercializan apartamentos. Permite llevar el ciclo completo de una venta: registrar clientes, crear proyectos y sus apartamentos, vender un apartamento y recibir los pagos hasta saldarlo.
 
-- **Evidencia actual:** GA7-220501096-AA5-EV03 — Diseño y desarrollo de servicios web (proyecto)
-- **Stack:** Python 3 · Flask · Flask-SQLAlchemy (ORM) · MySQL 8 (base de datos `ARKHE_V1`) · PyMySQL
-- **Repositorio:** https://github.com/pedroalbadev-art/ARKHE-software
+Es de propósito general: no está atada a ninguna empresa en particular. Los datos de demostración son inventados.
 
-## Módulos
+**Autor:** Pedro Alba Méndez — Tecnólogo en Análisis y Desarrollo de Software (ADSO), SENA, ficha 3235890.
+**Repositorio:** https://github.com/pedroalbadev-art/ARKHE-software
 
-| Módulo | Evidencia | Ruta base |
+## Contenido
+
+1. [Qué hace el sistema](#qué-hace-el-sistema)
+2. [Tecnologías](#tecnologías)
+3. [Instalación](#instalación)
+4. [Usuarios de demostración](#usuarios-de-demostración)
+5. [Roles y permisos](#roles-y-permisos)
+6. [Reglas de negocio](#reglas-de-negocio)
+7. [API REST](#api-rest)
+8. [Pruebas](#pruebas)
+9. [Seguridad](#seguridad)
+10. [Estructura del proyecto](#estructura-del-proyecto)
+11. [Limitaciones conocidas](#limitaciones-conocidas)
+
+## Qué hace el sistema
+
+| Módulo | Para qué sirve |
+|---|---|
+| Dashboard | Resumen con cifras reales: clientes, proyectos, apartamentos por estado, valor vendido, recaudo, saldo por cobrar y ventas de los últimos seis meses. |
+| Clientes | Personas o empresas: tanto los propietarios o promotores de un proyecto como los compradores. |
+| Proyectos | Cada proyecto tiene un cliente propietario o promotor y un usuario gestor. El listado muestra cuántos apartamentos tiene y cuántos están disponibles, reservados y vendidos. |
+| Apartamentos | Unidades de un proyecto, con área, habitaciones, baños, precio y estado. |
+| Ventas | Venta de un apartamento a un cliente comprador. El estado (pendiente, en pago o pagada) se calcula a partir de los pagos. |
+| Pagos | Abonos a una venta, hasta completar su valor. |
+| Usuarios | Personas que inician sesión, con su rol y su estado (activo o inactivo). |
+
+El flujo de trabajo es: **Cliente → Proyecto → Apartamento → Venta → Pago**.
+
+Quedan fuera del alcance: inventario, materiales, obra y proveedores.
+
+## Tecnologías
+
+| Capa | Tecnología |
+|---|---|
+| Lenguaje | Python 3.13 (funciona desde 3.10) |
+| Servidor web | Flask 3.1 |
+| Acceso a datos | Flask-SQLAlchemy (ORM) con el driver PyMySQL |
+| Base de datos | MySQL 8.4 |
+| Interfaz | HTML con plantillas Jinja, CSS y JavaScript propios (sin frameworks) |
+| Seguridad | `werkzeug.security` para las contraseñas, Flask-WTF para el token CSRF |
+| Pruebas | pytest 9 y una colección de Postman |
+
+Las versiones exactas están en `requirements.txt` y `requirements-dev.txt`.
+
+## Instalación
+
+### Requisitos
+
+- Windows 10 u 11 con PowerShell.
+- Python 3.10 o superior, con la opción *Add python.exe to PATH* marcada al instalarlo.
+- MySQL 8 encendido y un usuario con permiso para crear bases de datos.
+
+### Instalación automática
+
+En PowerShell, dentro de la carpeta del proyecto:
+
+```powershell
+.\instalar.ps1
+```
+
+El instalador hace cuatro cosas:
+
+1. Comprueba que Python esté instalado.
+2. Crea el entorno virtual `venv\`.
+3. Instala las dependencias.
+4. Pregunta los datos de conexión a MySQL y el nombre de la base. Luego crea el archivo `.env` con una clave de sesión nueva, crea la base, sus seis tablas y carga los datos de demostración.
+
+**Lo que el instalador nunca hace:**
+
+- No modifica ni borra una base de datos que ya exista. Si el nombre elegido ya está en uso, se detiene con un mensaje y no cambia nada.
+- No sobrescribe un archivo `.env` existente: lo usa tal como está.
+
+**Si Windows bloquea el script** con el mensaje *"la ejecución de scripts está deshabilitada en este sistema"*, ejecútelo así. Esto lo permite solo esta vez y no cambia la configuración del equipo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\instalar.ps1
+```
+
+Si descargó el proyecto como ZIP y Windows lo marca como archivo de internet, desbloquéelo antes con `Unblock-File .\instalar.ps1`.
+
+### Iniciar el sistema
+
+```powershell
+venv\Scripts\activate
+python app.py
+```
+
+Abra http://localhost:5000 e inicie sesión con uno de los [usuarios de demostración](#usuarios-de-demostración).
+
+### Instalación manual
+
+Si prefiere hacerlo paso a paso:
+
+```powershell
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements-dev.txt
+python scripts\preparar_base.py
+```
+
+`scripts\preparar_base.py` es la parte del instalador que crea el `.env`, la base y los datos. Para conectarse a una base que ya tiene, copie `.env.example` como `.env` y complete los valores a mano; si un valor contiene `#`, escríbalo entre comillas dobles.
+
+### Otros scripts
+
+| Comando | Para qué sirve |
+|---|---|
+| `python scripts\datos_demo.py` | Carga los datos de demostración. Solo funciona sobre una base vacía. |
+| `python scripts\datos_demo.py --solo-usuarios` | Agrega únicamente los tres usuarios de demostración que falten, sin tocar los existentes. |
+| `python scripts\cambiar_contrasena.py` | Restablece la contraseña de un usuario desde la consola, cuando nadie la recuerda. |
+
+## Usuarios de demostración
+
+| Rol | Correo | Contraseña |
 |---|---|---|
-| Inicio (panel con estadísticas) | AA5-EV03 | `/` |
-| Clientes | AA3-EV01 | `/clientes/` |
-| Usuarios | AA3-EV02 | `/usuarios/` |
-| Proyectos | AA5-EV03 | `/proyectos/` |
-| Apartamentos | AA5-EV03 | `/apartamentos/` |
-| Ventas | AA5-EV03 | `/ventas/` |
-| Pagos | AA5-EV03 | `/pagos/` |
+| Administrador | `admin@arkhe.example` | `Admin#2026` |
+| Vendedor | `vendedor@arkhe.example` | `Vendedor#2026` |
+| Gerente | `gerente@arkhe.example` | `Gerente#2026` |
 
-El orden de construcción sigue las llaves foráneas: Clientes y Usuarios no dependen de nadie; Proyectos necesita a ambos; Apartamentos necesita Proyectos; Ventas necesita Clientes y Apartamentos; Pagos necesita Ventas.
+**Estas contraseñas son solo para pruebas.** Están publicadas en este archivo, así que cualquiera las conoce. Antes de usar el sistema con datos reales, cambie la de cada cuenta con:
 
-## Estructura
-
-```
-ARKHE-software/
-├── app.py                 Punto de entrada: crea la app y registra los 7 blueprints
-├── config.py              Lee la conexión a MySQL desde .env
-├── requirements.txt
-├── models/                Una clase SQLAlchemy por tabla de ARKHE_V1
-│   ├── cliente.py  usuario.py  proyecto.py
-│   └── apartamento.py  venta.py  pago.py
-├── routes/                Un blueprint por módulo (CRUD + reglas de negocio)
-│   ├── api.py             API REST (JSON) de todos los modulos
-│   ├── dashboard.py  clientes.py  usuarios.py
-│   └── proyectos.py  apartamentos.py  ventas.py  pagos.py
-├── templates/
-│   ├── base.html          Plantilla base: menu lateral con logo, encabezado y mensajes
-│   ├── dashboard/inicio.html
-│   └── clientes/ usuarios/ proyectos/ apartamentos/ ventas/ pagos/
-│       └── lista.html  formulario.html
-├── static/
-│   ├── css/arkhe.css      Estilos de toda la aplicacion
-│   └── img/               Logo de ARKHE (marca y logo completo)
-├── utils/
-│   ├── validaciones.py    Validaciones y conversores reutilizables
-│   └── formato.py         Formato de pesos ($185.000.000)
-├── docs/ARKHE_API.postman_collection.json   Pruebas de la API en Postman
-└── database/              Referencias de esquema y conexión histórica
+```powershell
+python scripts\cambiar_contrasena.py
 ```
 
-Las plantillas se piden siempre con el prefijo del módulo (`render_template("ventas/lista.html")`) y ningún blueprint define un `template_folder` propio. Así se evita que Flask confunda los `lista.html` de distintos módulos (problema ya corregido en AA3-EV02).
+El script pide el correo del usuario y la contraseña nueva dos veces, sin mostrarla en pantalla. Las cuentas de demostración que no se vayan a usar se pueden desactivar desde el módulo de Usuarios.
 
-## Interfaz
+Los datos de demostración incluyen además seis clientes, dos proyectos, diez apartamentos, cuatro ventas (una pagada, dos en pago y una pendiente) y seis pagos.
 
-Todas las pantallas comparten `templates/base.html`, construida a partir del mockup de Dashboard/Clientes de la evidencia de frontend (GA6-AA4-EV02): menú lateral bronce con el logo de ARKHE, encabezado blanco con el título de la página, y contenido en tarjetas blancas con la paleta dorado/bronce del logo.
+## Roles y permisos
 
-- **Dashboard (`/`):** indicadores de clientes, proyectos, apartamentos disponibles, valor vendido y recaudado; gráfico de ventas de los últimos 6 meses; estado de apartamentos y de ventas; tablas de últimas ventas y últimos pagos. Todo sale de la base de datos, no hay datos fijos.
-- **Listados:** tarjetas de resumen (Apartamentos, Ventas, Proyectos), barra con buscador y filtros (por estado, proyecto, rol o método de pago) y tabla con acciones Editar/Eliminar. El buscador y los filtros funcionan en el navegador sobre las filas ya cargadas.
-- Algunos elementos de los mockups no se incluyeron porque la base de datos no tiene esas columnas: estado de clientes y de proyectos, usuario "@" y último acceso. El usuario conectado y "Cerrar sesión" tampoco se incluyeron, porque el inicio de sesión aún no está construido.
+| Módulo | Administrador | Vendedor | Gerente |
+|---|---|---|---|
+| Dashboard | Consulta | Consulta | Consulta |
+| Clientes | Consulta, crea, edita y elimina | Consulta, crea y edita | Consulta |
+| Proyectos | Consulta, crea, edita y elimina | Consulta | Consulta |
+| Apartamentos | Consulta, crea, edita y elimina | Consulta | Consulta |
+| Ventas | Consulta, crea, edita y elimina | Consulta, crea y edita | Consulta |
+| Pagos | Consulta, crea, edita y elimina | Consulta, crea y edita | Consulta |
+| Usuarios | Consulta, crea, edita, elimina, activa y desactiva | Sin acceso | Consulta; activa y desactiva solo cuentas de Vendedor |
 
-## API REST (servicios web JSON)
+En resumen:
 
-Además de las pantallas, ARKHE expone sus datos como **servicios web REST** bajo `/api` (`routes/api.py`). Reciben y responden **JSON**, así que pueden consumirlos otros sistemas o probarse con Postman.
+- **Eliminar** es exclusivo del Administrador en todos los módulos.
+- El **Vendedor** opera clientes, ventas y pagos.
+- El **Gerente** consulta todo y puede activar o desactivar cuentas de Vendedor.
+
+La matriz está definida en un solo lugar (`PERMISOS`, en `utils/seguridad.py`). Cada ruta declara el permiso que exige con `@rol_requerido(módulo, acción)`; el menú y los botones se ocultan según el rol, pero quien decide es siempre el servidor. La API aplica la misma matriz.
+
+Dos reglas protegen las cuentas: nadie puede eliminar ni desactivar la suya, y el sistema nunca puede quedar sin un Administrador activo.
+
+## Reglas de negocio
+
+- Al registrar una venta, el apartamento pasa a *vendido*. Si la venta se elimina, vuelve a *disponible*.
+- Un apartamento se vende una sola vez.
+- Los pagos son abonos: no pueden superar el saldo de la venta, su fecha no puede ser futura ni anterior a la fecha de la venta, y el método debe estar en la lista permitida.
+- El estado de una venta no se guarda: se calcula. *Pendiente* sin pagos, *en pago* con abonos parciales y *pagada* con saldo en cero.
+- Eliminaciones bloqueadas: un proyecto con apartamentos, un apartamento con venta, una venta con pagos, un cliente con proyectos o ventas, y un usuario que gestiona proyectos.
+
+Todas las validaciones se hacen en el servidor. Los formularios ayudan con `required` y patrones, pero no se confía en ellos.
+
+## API REST
+
+Los mismos datos están disponibles como servicios JSON bajo `/api`, con las mismas validaciones y los mismos permisos que las pantallas.
 
 | Método | Ruta | Acción | Respuesta correcta |
 |---|---|---|---|
+| POST | `/api/login` | Iniciar sesión | 200 |
 | GET | `/api/<recurso>` | Listar | 200 |
 | GET | `/api/<recurso>/<id>` | Consultar uno | 200 |
 | POST | `/api/<recurso>` | Crear | 201 |
 | PUT | `/api/<recurso>/<id>` | Actualizar | 200 |
 | DELETE | `/api/<recurso>/<id>` | Eliminar | 200 |
+| PUT | `/api/usuarios/<id>/estado` | Activar o desactivar un usuario | 200 |
+| GET | `/api/resumen` | Cifras del dashboard | 200 |
 
-Recursos: `clientes`, `usuarios`, `proyectos`, `apartamentos`, `ventas` y `pagos`. Hay además tres rutas extra:
+Recursos: `clientes`, `usuarios`, `proyectos`, `apartamentos`, `ventas` y `pagos`. Filtros disponibles: `/api/apartamentos?estado=disponible`, `/api/ventas?estado=en-pago` y `/api/pagos?venta=<id>`.
 
-- `GET /api` muestra el índice de servicios.
-- `GET /api/resumen` devuelve las cifras del dashboard.
-- Algunos listados aceptan filtros: `GET /api/apartamentos?estado=disponible`, `GET /api/ventas?estado=en-pago` y `GET /api/pagos?venta=<id>`.
+**La API exige sesión.** Primero se llama a `POST /api/login` con `{"correo": "...", "contrasena": "..."}`; la respuesta trae la cookie de sesión, que debe enviarse en las peticiones siguientes.
 
-**Códigos de error:**
+| Código | Significado |
+|---|---|
+| 400 | El cuerpo no es JSON o los datos no pasan las validaciones: `{"errores": ["..."]}` |
+| 401 | No hay sesión iniciada |
+| 403 | El rol no tiene permiso para esa acción |
+| 404 | El registro o la ruta no existe |
+| 409 | La operación rompe una regla de negocio o un dato único ya existe |
 
-- **400:** el cuerpo no es JSON o los datos no pasan las validaciones. La respuesta trae la lista de errores: `{"errores": ["..."]}`.
-- **404:** el registro no existe.
-- **409:** la operación rompe una regla de negocio, por ejemplo eliminar una venta que tiene pagos, o un dato único ya existe.
+La contraseña de un usuario nunca se devuelve, ni siquiera su hash.
 
-**Métodos reutilizables.** La API no duplica las reglas: llama a las mismas funciones de validación que usan los formularios HTML. Esas funciones son `validar_datos_proyecto`, `validar_datos_apartamento`, `validar_datos_venta` y `validar_datos_pago`, junto con las de Clientes y Usuarios. Un dato inválido recibe el mismo mensaje por la pantalla y por la API. La contraseña de los usuarios nunca se devuelve en las respuestas.
+## Pruebas
 
-Ejemplo, crear un apartamento:
+### pytest
+
+```powershell
+venv\Scripts\activate
+pytest
+```
+
+Son 248 pruebas. No tocan la base de datos real: cada una usa una base temporal en memoria (SQLite) que se crea y se destruye sola.
+
+| Archivo | Qué comprueba |
+|---|---|
+| `tests/test_validaciones.py`, `tests/test_formato.py` | Validadores y formato de valores. |
+| `tests/test_reglas.py` | Reglas de negocio de ventas, pagos y eliminaciones. |
+| `tests/test_auth.py` | Inicio y cierre de sesión, usuarios inactivos. |
+| `tests/test_permisos.py` | La matriz de permisos en pantallas y API. |
+| `tests/test_seguridad.py` | Token CSRF, mensajes de error, páginas de error. |
+| `tests/test_interfaz.py` | Confirmaciones, mensajes, estados vacíos, accesibilidad, CSP. |
+| `tests/test_instalacion.py` | Esquema SQL, datos de demostración e instalador. |
+
+### Postman
+
+1. Con el servidor encendido, importe `docs/ARKHE_API.postman_collection.json` en Postman.
+2. Abra la colección, pestaña **Variables**, y escriba el correo y la contraseña de un Administrador activo en `correo_login` y `contrasena_login`, **solo en la columna "Current value"**. Ese valor se queda en su Postman y no se exporta.
+3. Ejecute la colección completa con el *Runner*.
+
+La colección tiene 36 peticiones. La primera inicia sesión y Postman conserva la cookie para las demás. Cada petición crea lo que necesita y la última carpeta lo elimina, así que la base queda como estaba.
+
+## Seguridad
+
+- **Contraseñas:** se guarda solo su hash (`werkzeug.security`), nunca el texto.
+- **Sesión:** cookie firmada con `SECRET_KEY`, `HttpOnly`, `SameSite=Lax` y con caducidad de ocho horas. Ninguna página se abre sin sesión; un usuario desactivado pierde el acceso en su siguiente petición.
+- **CSRF:** todos los formularios llevan un token (Flask-WTF). La API queda exenta porque solo acepta JSON.
+- **XSS:** Jinja escapa todos los datos; las plantillas no llevan JavaScript en línea y la cabecera Content-Security-Policy solo permite scripts propios.
+- **Inyección SQL:** todas las consultas pasan por el ORM, con parámetros.
+- **Errores:** los mensajes al usuario no muestran detalles técnicos; el detalle queda en el registro del servidor.
+- **Secretos:** el archivo `.env` no se sube al repositorio. Sin `SECRET_KEY`, la aplicación no arranca.
+
+## Estructura del proyecto
 
 ```
-POST /api/apartamentos
-Content-Type: application/json
-
-{"id_proyecto": 1, "numero_apartamento": "301", "area_m2": 54.3,
- "habitaciones": 3, "banos": 2, "precio": 185000000}
+ARKHE-software/
+├── app.py                  Crea la aplicación y registra los módulos
+├── config.py               Lee la configuración del archivo .env
+├── instalar.ps1            Instalador para Windows
+├── requirements.txt        Dependencias (versiones fijas)
+├── models/                 Un modelo por tabla
+├── routes/                 Un módulo por archivo, más auth.py (sesión) y api.py (API REST)
+├── utils/
+│   ├── seguridad.py        Sesión, matriz de permisos y decoradores
+│   ├── validaciones.py     Validadores reutilizables
+│   ├── resumen.py          Cifras del dashboard y de /api/resumen
+│   └── formato.py          Formato de pesos y de métodos de pago
+├── templates/              Plantillas Jinja (base.html y una carpeta por módulo)
+├── static/                 arkhe.css, arkhe.js y el logo
+├── scripts/                preparar_base.py, datos_demo.py y cambiar_contrasena.py
+├── database/esquema.sql    Estructura de las seis tablas
+├── tests/                  Pruebas con pytest
+├── docs/                   Colección de Postman y documentos de entregas anteriores
+├── assets/                 Reservada para material que no forma parte de la aplicación
+└── Mockups/                Diseños de referencia de la interfaz
 ```
 
-**Pruebas con Postman.** Importa `docs/ARKHE_API.postman_collection.json` en Postman y ejecútala en orden, o completa con el *Collection Runner*. La colección tiene 35 peticiones e incluye:
-
-- creación, consulta, actualización y eliminación de cada recurso;
-- casos con datos inválidos (400);
-- reglas de negocio bloqueadas (409) y registro inexistente (404).
-
-Cada POST guarda el id creado en una variable de la colección y las peticiones siguientes lo usan. La última carpeta elimina todo lo que se creó, así que la base de datos queda como estaba.
-
-## Instalación
-
-1. Crear y activar el entorno virtual:
-   ```
-   python -m venv venv
-   venv\Scripts\activate
-   ```
-2. Instalar dependencias: `pip install -r requirements.txt`
-3. Crear el archivo `.env` (ver `.env.example`) con `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` y `SECRET_KEY`. Si la contraseña tiene caracteres especiales como `#`, va entre comillas dobles.
-4. Ejecutar: `python app.py` y abrir http://localhost:5000
-
-La aplicación usa las tablas que ya existen en `ARKHE_V1`; no las crea ni las modifica.
-
-## Esquema de la base de datos
-
-Verificado contra la base real con `information_schema.COLUMNS` (los modelos usan exactamente estas columnas):
+### Base de datos
 
 | Tabla | Columnas |
 |---|---|
-| clientes | id_cliente (PK), nombre, apellido, documento (UNIQUE), correo (UNIQUE), telefono |
-| usuarios | id_usuario (PK), nombre, apellido, correo (UNIQUE), contrasena (hash), rol, estado |
-| proyectos | id_proyecto (PK), id_cliente (FK), id_usuario (FK), nombre_proyecto (UNIQUE), direccion, ciudad, descripcion |
-| apartamentos | id_apartamento (PK), id_proyecto (FK), numero_apartamento, area_m2, habitaciones, banos, precio, estado |
-| ventas | id_venta (PK), id_cliente (FK), id_apartamento (FK, UNIQUE), fecha_venta, valor_venta |
-| pagos | id_pago (PK), id_venta (FK), fecha_pago, monto, metodo_pago |
+| usuarios | id_usuario, nombre, apellido, correo (único), contrasena (hash), rol, estado |
+| clientes | id_cliente, nombre, apellido, documento (único), correo (único), telefono |
+| proyectos | id_proyecto, id_cliente, id_usuario, nombre_proyecto (único), direccion, ciudad, descripcion |
+| apartamentos | id_apartamento, id_proyecto, numero_apartamento, area_m2, habitaciones, banos, precio, estado |
+| ventas | id_venta, id_cliente, id_apartamento (único), fecha_venta, valor_venta |
+| pagos | id_pago, id_venta, fecha_pago, monto, metodo_pago |
 
-Valores que se calculan en Python y no se guardan (para no duplicar datos, 3FN):
+Varios valores se calculan y no se guardan, para no duplicar información: el nombre completo, el total pagado, el saldo y el estado de una venta, y el conteo de apartamentos por estado de un proyecto.
 
-- `Cliente.nombre_completo` y `Usuario.nombre_completo`.
-- `Venta.total_pagado` (suma de sus pagos), `Venta.saldo` y `Venta.estado`: *pendiente* sin pagos, *en-pago* con pagos parciales, *pagada* con saldo en cero.
+## Limitaciones conocidas
 
-## Endpoints
-
-Todos los módulos nuevos siguen el mismo patrón (`<id>` es la llave primaria):
-
-| Método | Ruta | Acción |
-|---|---|---|
-| GET | `/<modulo>/` | Listar |
-| GET | `/<modulo>/nuevo` (en Ventas: `/ventas/nueva`) | Formulario de creación |
-| POST | `/<modulo>/crear` | Crear |
-| GET | `/<modulo>/<id>/editar` | Formulario de edición |
-| POST | `/<modulo>/<id>/actualizar` | Guardar cambios |
-| POST | `/<modulo>/<id>/eliminar` | Eliminar |
-
-Además, `GET /pagos/?venta=<id>` filtra los pagos de una venta y `GET /pagos/nuevo?venta=<id>` abre el formulario con esa venta elegida.
-
-Clientes y Usuarios conservan sus rutas originales: `GET /`, `POST /nuevo`, `GET` y `POST /<id>/editar`, `POST /<id>/eliminar`.
-
-## Validaciones (todas en el backend)
-
-Los formularios tienen `required`, `min`, `max` y patrones como ayuda, pero todas las reglas se vuelven a revisar en Python antes de guardar. Si algo falla, el formulario se muestra de nuevo con los mensajes de error y los datos escritos.
-
-**Proyectos**
-- Nombre obligatorio, único, máximo 150 caracteres. Dirección obligatoria, máximo 200.
-- Ciudad: solo letras y espacios, máximo 100.
-- El cliente debe existir y el usuario gestor debe existir y estar activo.
-
-**Apartamentos**
-- El proyecto debe existir.
-- Número obligatorio, máximo 20 caracteres (letras, números, guion y espacios), único dentro del proyecto.
-- Área mayor que 0 y hasta 9999.99 m². Habitaciones y baños: enteros entre 1 y 10. Precio mayor que 0.
-- Estado: *disponible* o *reservado* (apartado por un cliente). El estado *vendido* lo pone solo el módulo de Ventas.
-
-**Ventas**
-- El cliente y el apartamento deben existir, y el apartamento debe estar disponible o reservado.
-- Fecha válida y no futura. Valor mayor que 0.
-- Al editar, el valor no puede quedar por debajo de lo ya pagado, y la fecha no puede ser posterior al primer pago.
-
-**Pagos**
-- La venta debe existir.
-- Fecha válida, no futura y no anterior a la fecha de la venta.
-- Monto mayor que 0 y sin superar el saldo pendiente (al editar no se cuenta el propio pago).
-- Método de pago dentro de la lista permitida: Efectivo, Transferencia, Tarjeta de credito, Tarjeta debito, Cheque o Credito hipotecario.
-
-**Clientes y Usuarios** (evidencias anteriores)
-- Nombre y apellido solo con letras; documento de 6 a 15 dígitos; teléfono de 7 a 15 dígitos; correo con formato válido.
-- Documento y correo únicos. Contraseña de mínimo 8 caracteres, guardada como hash con `werkzeug.security`.
-- Rol: Administrador, Vendedor o Gerente. Estado: activo o inactivo.
-
-## Reglas de negocio
-
-- Un apartamento se vende una sola vez (`ventas.id_apartamento` es UNIQUE).
-- Al registrar una venta, el apartamento pasa a *vendido*. Si la venta se elimina, o se cambia a otro apartamento, el anterior vuelve a *disponible*. Los dos cambios se guardan en una misma transacción.
-- No se puede eliminar un proyecto que tenga apartamentos, un apartamento que tenga venta, ni una venta que tenga pagos. En esos casos se muestra un mensaje claro en vez de un error de base de datos.
-
-## Prueba sugerida
-
-1. Crear un cliente y un usuario activo.
-2. Crear un proyecto (probar una ciudad con números para ver el error).
-3. Crear dos apartamentos (probar el mismo número repetido para ver el error).
-4. Registrar una venta: el apartamento pasa a *vendido*.
-5. Registrar un pago parcial (la venta queda *en-pago*) y luego otro por el saldo (queda *pagada*).
-6. Intentar un pago mayor que el saldo, y eliminar una venta con pagos: ambos se rechazan.
-7. Revisar el panel de inicio: estados y recaudo actualizados.
-
-## Autor
-
-Pedro Alba Méndez — ADSO, SENA, ficha 3235890.
+- **Sin paginación.** Los listados cargan todos los registros; el buscador y los filtros trabajan en el navegador sobre lo ya cargado. Con miles de registros haría falta paginar en el servidor.
+- **Sin límite de intentos de inicio de sesión.** No hay bloqueo tras varios intentos fallidos.
+- **Sin recuperación de contraseña por correo.** La restablece un Administrador o el script `scripts\cambiar_contrasena.py`.
+- **Sin historial de cambios.** Las tablas no registran quién creó o modificó cada dato ni cuándo.
+- **Concurrencia.** Si dos personas registran al mismo tiempo un pago sobre la misma venta, la validación del saldo no usa bloqueo de fila.
+- **Un apartamento vendido** todavía puede cambiarse de proyecto o de precio desde su formulario. Al eliminar la venta de un apartamento que estaba reservado, queda disponible y no reservado.
+- **Métodos de pago.** Se guardan sin tilde ("Tarjeta de credito") y se muestran con tilde en pantalla; la API recibe y devuelve el valor sin tilde.
+- **Servidor de desarrollo.** `python app.py` usa el servidor de Flask, pensado para desarrollo. Para un uso real haría falta un servidor de producción y HTTPS.
+- **Instalador solo para Windows.** En otros sistemas se siguen los pasos de la instalación manual.
+- **La cabecera CSP permite estilos en línea**, porque el gráfico del dashboard fija el tamaño de sus barras con el atributo `style`. Los scripts en línea sí están bloqueados.

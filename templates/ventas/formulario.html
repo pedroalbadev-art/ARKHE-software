@@ -1,21 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}{{ 'Nueva Venta' if accion == 'crear' else 'Editar Venta' }} - ARKHE{% endblock %}
+{% block title %}{{ 'Nueva Venta' if accion == 'crear' else 'Editar Venta' }}{% endblock %}
 
 {% block titulo_pagina %}{{ 'Nueva Venta' if accion == 'crear' else 'Editar Venta #' ~ venta.id_venta }}{% endblock %}
 
 {% block content %}
   <div class="tarjeta form-card">
-    <p class="nota" style="margin:0 0 18px;">Solo aparecen los apartamentos disponibles o reservados. Al guardar, el apartamento pasa a "vendido".</p>
+    <p class="nota nota-superior">Solo aparecen los apartamentos disponibles o reservados. Al guardar, el apartamento pasa a "vendido".</p>
     {% if not apartamentos %}
       <div class="vacio">
         <p>No hay apartamentos disponibles o reservados para vender.</p>
+        {% if puede('apartamentos', 'editar') %}
         <a href="{{ url_for('apartamentos.formulario_nuevo') }}" class="btn btn-primary">Crear un apartamento</a>
+        {% endif %}
       </div>
     {% else %}
     <form method="POST"
           action="{{ url_for('ventas.crear_venta') if accion == 'crear' else url_for('ventas.actualizar_venta', id=venta.id_venta) }}"
           class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group">
         <label for="id_cliente">Cliente comprador *</label>
@@ -64,17 +67,4 @@
     {% endif %}
   </div>
 
-<script>
-  // Comodidad: al elegir un apartamento, sugiere su precio como valor de
-  // venta (solo si el campo esta vacio). El backend valida igual.
-  (function () {
-    var apto = document.getElementById("id_apartamento");
-    var valor = document.getElementById("valor_venta");
-    if (!apto || !valor) return;
-    apto.addEventListener("change", function () {
-      var precio = apto.options[apto.selectedIndex].getAttribute("data-precio");
-      if (precio && !valor.value) valor.value = precio;
-    });
-  })();
-</script>
 {% endblock %}

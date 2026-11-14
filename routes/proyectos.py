@@ -23,13 +23,14 @@ Las plantillas se piden con el prefijo "proyectos/" (sin template_folder
 propio) para que no se confundan con las de otros modulos.
 """
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.apartamento import Apartamento  # noqa: F401 (registra proyecto.apartamentos)
 from models.cliente import Cliente
 from models.proyecto import Proyecto
 from models.usuario import Usuario
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_entero, validar_lengitud, validar_no_vacio, validar_solo_letras
 
 proyectos_bp = Blueprint("proyectos", __name__)
@@ -109,17 +110,20 @@ def _formulario(accion, proyecto=None, **valores):
 
 
 @proyectos_bp.route("/", methods=["GET"])
+@rol_requerido("proyectos", "ver")
 def listar_proyectos():
     proyectos = Proyecto.query.order_by(Proyecto.nombre_proyecto).all()
     return render_template("proyectos/lista.html", proyectos=proyectos)
 
 
 @proyectos_bp.route("/nuevo", methods=["GET"])
+@rol_requerido("proyectos", "editar")
 def formulario_nuevo():
     return _formulario("crear")
 
 
 @proyectos_bp.route("/crear", methods=["POST"])
+@rol_requerido("proyectos", "editar")
 def crear_proyecto():
     errores, datos = validar_datos_proyecto(request.form)
     if errores:
@@ -141,13 +145,15 @@ def crear_proyecto():
         db.session.commit()
         flash(f"Proyecto '{datos['nombre_proyecto']}' creado correctamente.", "exito")
         return redirect(url_for("proyectos.listar_proyectos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al crear proyecto: {e}", "error")
+        current_app.logger.exception("Error al crear proyecto")
+        flash("Error al crear proyecto. Intente de nuevo o avise al administrador.", "error")
         return _formulario("crear")
 
 
 @proyectos_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("proyectos", "editar")
 def formulario_editar(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -157,6 +163,7 @@ def formulario_editar(id):
 
 
 @proyectos_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("proyectos", "editar")
 def actualizar_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -175,13 +182,15 @@ def actualizar_proyecto(id):
         db.session.commit()
         flash(f"Proyecto '{proyecto.nombre_proyecto}' actualizado correctamente.", "exito")
         return redirect(url_for("proyectos.listar_proyectos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar proyecto: {e}", "error")
+        current_app.logger.exception("Error al actualizar proyecto")
+        flash("Error al actualizar proyecto. Intente de nuevo o avise al administrador.", "error")
         return _formulario("editar", proyecto)
 
 
 @proyectos_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("proyectos", "eliminar")
 def eliminar_proyecto(id):
     proyecto = db.session.get(Proyecto, id)
     if not proyecto:
@@ -194,7 +203,8 @@ def eliminar_proyecto(id):
             db.session.delete(proyecto)
             db.session.commit()
             flash(f"Proyecto '{nombre}' eliminado correctamente.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar proyecto: {e}", "error")
+            current_app.logger.exception("Error al eliminar proyecto")
+            flash("Error al eliminar proyecto. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("proyectos.listar_proyectos"))

@@ -29,11 +29,12 @@ nombres lista.html/formulario.html no se mezclen entre modulos.
 
 from decimal import Decimal
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.apartamento import ESTADOS_EDITABLES, Apartamento
 from models.proyecto import Proyecto
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, es_numero_apto_valido, MAXIMO_DECIMAL_15_2
 
 apartamentos_bp = Blueprint("apartamentos", __name__)
@@ -50,11 +51,11 @@ def validar_datos_apartamento(form, apartamento=None):
 
     numero = (form.get("numero_apartamento") or "").strip()
     if not numero:
-        errores.append("El numero de apartamento es obligatorio.")
+        errores.append("El número de apartamento es obligatorio.")
     elif len(numero) > 20:
-        errores.append("El numero de apartamento no puede superar 20 caracteres.")
+        errores.append("El número de apartamento no puede superar 20 caracteres.")
     elif not es_numero_apto_valido(numero):
-        errores.append("El numero de apartamento solo admite letras, numeros, guion y espacios.")
+        errores.append("El número de apartamento solo admite letras, números, guion y espacios.")
     elif id_proyecto is not None:
         consulta = Apartamento.query.filter_by(id_proyecto=id_proyecto, numero_apartamento=numero)
         if apartamento:
@@ -64,19 +65,19 @@ def validar_datos_apartamento(form, apartamento=None):
 
     area = a_decimal(form.get("area_m2"))
     if area is None or area <= 0 or area > Decimal("9999.99"):
-        errores.append("El area debe ser un numero mayor que 0 y hasta 9999.99 m2.")
+        errores.append("El área debe ser un número mayor que 0 y hasta 9999.99 m².")
 
     habitaciones = a_entero(form.get("habitaciones"))
     if habitaciones is None or not 1 <= habitaciones <= 10:
-        errores.append("Las habitaciones deben ser un numero entero entre 1 y 10.")
+        errores.append("Las habitaciones deben ser un número entero entre 1 y 10.")
 
     banos = a_entero(form.get("banos"))
     if banos is None or not 1 <= banos <= 10:
-        errores.append("Los banos deben ser un numero entero entre 1 y 10.")
+        errores.append("Los baños deben ser un número entero entre 1 y 10.")
 
     precio = a_decimal(form.get("precio"))
     if precio is None or precio <= 0 or precio > MAXIMO_DECIMAL_15_2:
-        errores.append("El precio debe ser un numero mayor que 0 (sin puntos de miles).")
+        errores.append("El precio debe ser un número mayor que 0 (sin puntos de miles).")
 
     estado = (form.get("estado") or "").strip()
     if apartamento is not None and apartamento.venta is not None:
@@ -109,6 +110,7 @@ def _formulario(datos, accion, apartamento=None):
 
 
 @apartamentos_bp.route("/", methods=["GET"])
+@rol_requerido("apartamentos", "ver")
 def listar_apartamentos():
     apartamentos = Apartamento.query.order_by(
         Apartamento.id_proyecto, Apartamento.numero_apartamento
@@ -117,11 +119,13 @@ def listar_apartamentos():
 
 
 @apartamentos_bp.route("/nuevo", methods=["GET"])
+@rol_requerido("apartamentos", "editar")
 def formulario_nuevo():
     return _formulario({"estado": "disponible"}, "crear")
 
 
 @apartamentos_bp.route("/crear", methods=["POST"])
+@rol_requerido("apartamentos", "editar")
 def crear_apartamento():
     errores, datos = validar_datos_apartamento(request.form)
     if errores:
@@ -134,13 +138,15 @@ def crear_apartamento():
         db.session.commit()
         flash(f"Apartamento '{datos['numero_apartamento']}' creado correctamente.", "exito")
         return redirect(url_for("apartamentos.listar_apartamentos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al crear el apartamento: {e}", "error")
+        current_app.logger.exception("Error al crear el apartamento")
+        flash("Error al crear el apartamento. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "crear")
 
 
 @apartamentos_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("apartamentos", "editar")
 def formulario_editar(id):
     apartamento = db.session.get(Apartamento, id)
     if not apartamento:
@@ -159,6 +165,7 @@ def formulario_editar(id):
 
 
 @apartamentos_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("apartamentos", "editar")
 def actualizar_apartamento(id):
     apartamento = db.session.get(Apartamento, id)
     if not apartamento:
@@ -177,13 +184,15 @@ def actualizar_apartamento(id):
         db.session.commit()
         flash(f"Apartamento '{apartamento.numero_apartamento}' actualizado correctamente.", "exito")
         return redirect(url_for("apartamentos.listar_apartamentos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar el apartamento: {e}", "error")
+        current_app.logger.exception("Error al actualizar el apartamento")
+        flash("Error al actualizar el apartamento. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "editar", apartamento)
 
 
 @apartamentos_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("apartamentos", "eliminar")
 def eliminar_apartamento(id):
     apartamento = db.session.get(Apartamento, id)
     if not apartamento:
@@ -196,7 +205,8 @@ def eliminar_apartamento(id):
             db.session.delete(apartamento)
             db.session.commit()
             flash(f"Apartamento '{numero}' eliminado correctamente.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar el apartamento: {e}", "error")
+            current_app.logger.exception("Error al eliminar el apartamento")
+            flash("Error al eliminar el apartamento. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("apartamentos.listar_apartamentos"))

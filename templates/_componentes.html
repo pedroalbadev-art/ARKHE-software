@@ -1,0 +1,45 @@
+{#
+  templates/_componentes.html
+  Piezas de interfaz reutilizables (macros de Jinja). Una macro es como
+  una funcion: se define una vez y se usa en varias plantillas con
+      {% from "_componentes.html" import alertas, estado_vacio %}
+#}
+
+{# ---- Mensajes flash con icono y boton de cierre ----
+   Categorias que usan las rutas: exito, error, info. #}
+{% macro alertas() %}
+  {% set iconos = {
+      'exito': 'M9 12.5l2 2 4-4.5M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
+      'error': 'M12 8v5m0 3.5v.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0z',
+      'info':  'M12 11v5m0-8.5v.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
+  } %}
+  {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% for categoria, mensaje in mensajes %}
+      {# Los errores se anuncian de inmediato a los lectores de pantalla. #}
+      <div class="alert alert-{{ categoria }}" role="{{ 'alert' if categoria == 'error' else 'status' }}">
+        <svg class="alert-icono" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ iconos.get(categoria, iconos['info']) }}"/></svg>
+        <span class="alert-texto">{{ mensaje }}</span>
+        <button type="button" class="alert-cerrar" data-cerrar-alerta aria-label="Cerrar mensaje">&times;</button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+{% endmacro %}
+
+{# ---- Estado vacio de una tabla, con llamada a la accion ----
+   columnas: cuantas columnas ocupa (colspan).
+   Si se pasa `url`, el boton es un enlace; si se pasa `modal`, abre esa
+   ventana modal. Sin ninguno (rol sin permiso de crear) no hay boton. #}
+{% macro estado_vacio(columnas, titulo, texto, etiqueta=none, url=none, modal=none) %}
+  <tr>
+    <td colspan="{{ columnas }}" class="vacio">
+      <svg class="vacio-icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
+      <p class="vacio-titulo">{{ titulo }}</p>
+      <p class="vacio-texto">{{ texto }}</p>
+      {% if etiqueta and url %}
+        <a href="{{ url }}" class="btn btn-primary">{{ etiqueta }}</a>
+      {% elif etiqueta and modal %}
+        <button type="button" class="btn btn-primary" data-abrir-modal="{{ modal }}">{{ etiqueta }}</button>
+      {% endif %}
+    </td>
+  </tr>
+{% endmacro %}

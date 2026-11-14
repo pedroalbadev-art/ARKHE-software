@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% from "_componentes.html" import estado_vacio %}
 
-{% block title %}Proyectos - ARKHE{% endblock %}
-{% block titulo_pagina %}Gestion de Proyectos{% endblock %}
+{% block title %}Proyectos{% endblock %}
+{% block titulo_pagina %}Gestión de Proyectos{% endblock %}
 
 {% block content %}
   {% set total_aptos = proyectos|map(attribute='apartamentos')|map('length')|sum %}
@@ -24,8 +25,10 @@
   </div>
 
   <div class="herramientas">
+    {% if puede('proyectos', 'editar') %}
     <a href="{{ url_for('proyectos.formulario_nuevo') }}" class="btn btn-primary">+ Nuevo Proyecto</a>
-    <input type="search" id="buscador" placeholder="Buscar proyecto por nombre, ciudad, cliente o gestor...">
+    {% endif %}
+    <input type="search" id="buscador" aria-label="Buscar en la tabla" placeholder="Buscar proyecto por nombre, ciudad, propietario o gestor...">
   </div>
 
   <div class="tarjeta tarjeta-sin-padding">
@@ -34,36 +37,56 @@
         <thead>
           <tr>
             <th>Nombre del proyecto</th>
-            <th>Cliente</th>
-            <th>Ubicacion</th>
+            <th>Propietario / promotor</th>
+            <th>Ubicación</th>
             <th>Responsable</th>
-            <th class="num">Apartamentos</th>
+            <th>Apartamentos</th>
             <th class="centro">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for proyecto in proyectos %}
           <tr data-fila>
-            <td class="fuerte" style="color:var(--dorado);">{{ proyecto.nombre_proyecto }}</td>
+            <td class="fuerte texto-marca">{{ proyecto.nombre_proyecto }}</td>
             <td><span class="badge badge-proyecto">{{ proyecto.cliente.nombre_completo }}</span></td>
             <td>{{ proyecto.direccion }}, {{ proyecto.ciudad }}</td>
             <td>
               {{ proyecto.usuario.nombre_completo }}
               <span class="badge badge-{{ proyecto.usuario.rol|lower }}">{{ proyecto.usuario.rol }}</span>
             </td>
-            <td class="num">{{ proyecto.apartamentos|length }}</td>
+            {# Columna calculada (Proyecto.resumen_apartamentos): no se guarda en la base. #}
             <td>
-              <div class="acciones" style="justify-content:center;">
+              {% set conteo = proyecto.resumen_apartamentos %}
+              <span class="fuerte">{{ conteo.total }}</span> <span class="suave">en total</span>
+              {% if conteo.total %}
+              <div class="conteo-estados">
+                <span class="badge badge-disponible">{{ conteo.disponible }} disponible{{ 's' if conteo.disponible != 1 }}</span>
+                <span class="badge badge-reservado">{{ conteo.reservado }} reservado{{ 's' if conteo.reservado != 1 }}</span>
+                <span class="badge badge-vendido">{{ conteo.vendido }} vendido{{ 's' if conteo.vendido != 1 }}</span>
+              </div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="acciones acciones-centro">
+                {% if puede('proyectos', 'editar') %}
                 <a href="{{ url_for('proyectos.formulario_editar', id=proyecto.id_proyecto) }}" class="btn btn-sm accion-editar">Editar</a>
+                {% endif %}
+                {% if puede('proyectos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('proyectos.eliminar_proyecto', id=proyecto.id_proyecto) }}"
-                      onsubmit="return confirm('¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?');">
+                      data-confirmar="¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
+                {% endif %}
+                {% if not puede('proyectos', 'editar') %}<span class="suave">Solo consulta</span>{% endif %}
               </div>
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="6" class="vacio">Aun no hay proyectos registrados.</td></tr>
+          {{ estado_vacio(6, 'Aún no hay proyectos registrados',
+                          'Un proyecto agrupa los apartamentos que se van a comercializar.',
+                          '+ Nuevo Proyecto' if puede('proyectos', 'editar'),
+                          url=url_for('proyectos.formulario_nuevo')) }}
           {% endfor %}
         </tbody>
       </table>

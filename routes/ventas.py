@@ -27,12 +27,13 @@ Validaciones en el backend:
 
 from datetime import date
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.apartamento import Apartamento
 from models.cliente import Cliente
 from models.venta import Venta
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura, MAXIMO_DECIMAL_15_2
 
 ventas_bp = Blueprint("ventas", __name__)
@@ -52,11 +53,11 @@ def validar_datos_venta(form, venta=None):
     elif venta is None or venta.id_apartamento != apartamento.id_apartamento:
         # Es una venta nueva o se cambio de apartamento: debe estar libre.
         if not apartamento.puede_venderse:
-            errores.append(f"El apartamento '{apartamento.numero_apartamento}' no esta disponible para la venta.")
+            errores.append(f"El apartamento '{apartamento.numero_apartamento}' no está disponible para la venta.")
 
     fecha = a_fecha(form.get("fecha_venta"))
     if fecha is None:
-        errores.append("La fecha de venta es obligatoria y debe ser valida.")
+        errores.append("La fecha de venta es obligatoria y debe ser válida.")
     elif es_fecha_futura(fecha):
         errores.append("La fecha de venta no puede ser futura.")
     elif venta is not None and venta.pagos and fecha > min(p.fecha_pago for p in venta.pagos):
@@ -64,7 +65,7 @@ def validar_datos_venta(form, venta=None):
 
     valor = a_decimal(form.get("valor_venta"))
     if valor is None or valor <= 0 or valor > MAXIMO_DECIMAL_15_2:
-        errores.append("El valor de venta debe ser un numero mayor que 0 (sin puntos de miles).")
+        errores.append("El valor de venta debe ser un número mayor que 0 (sin puntos de miles).")
     elif venta is not None and valor < venta.total_pagado:
         errores.append("El valor de venta no puede ser menor que lo ya pagado por el cliente.")
 
@@ -95,17 +96,20 @@ def _formulario(datos, accion, venta=None):
 
 
 @ventas_bp.route("/", methods=["GET"])
+@rol_requerido("ventas", "ver")
 def listar_ventas():
     ventas = Venta.query.order_by(Venta.fecha_venta.desc(), Venta.id_venta.desc()).all()
     return render_template("ventas/lista.html", ventas=ventas)
 
 
 @ventas_bp.route("/nueva", methods=["GET"])
+@rol_requerido("ventas", "editar")
 def formulario_nuevo():
     return _formulario({"fecha_venta": date.today().isoformat()}, "crear")
 
 
 @ventas_bp.route("/crear", methods=["POST"])
+@rol_requerido("ventas", "editar")
 def crear_venta():
     errores, datos, apartamento = validar_datos_venta(request.form)
     if errores:
@@ -120,13 +124,15 @@ def crear_venta():
         db.session.commit()  # venta + cambio de estado en una sola transaccion
         flash(f"Venta del apartamento '{apartamento.numero_apartamento}' registrada correctamente.", "exito")
         return redirect(url_for("ventas.listar_ventas"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al registrar la venta: {e}", "error")
+        current_app.logger.exception("Error al registrar la venta")
+        flash("Error al registrar la venta. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "crear")
 
 
 @ventas_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("ventas", "editar")
 def formulario_editar(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -142,6 +148,7 @@ def formulario_editar(id):
 
 
 @ventas_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("ventas", "editar")
 def actualizar_venta(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -164,13 +171,15 @@ def actualizar_venta(id):
         db.session.commit()
         flash(f"Venta #{venta.id_venta} actualizada correctamente.", "exito")
         return redirect(url_for("ventas.listar_ventas"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar la venta: {e}", "error")
+        current_app.logger.exception("Error al actualizar la venta")
+        flash("Error al actualizar la venta. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "editar", venta)
 
 
 @ventas_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("ventas", "eliminar")
 def eliminar_venta(id):
     venta = db.session.get(Venta, id)
     if not venta:
@@ -182,8 +191,9 @@ def eliminar_venta(id):
             venta.apartamento.estado = "disponible"
             db.session.delete(venta)
             db.session.commit()
-            flash(f"Venta #{id} eliminada. El apartamento volvio a estar disponible.", "exito")
-        except Exception as e:
+            flash(f"Venta #{id} eliminada. El apartamento volvió a estar disponible.", "exito")
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar la venta: {e}", "error")
+            current_app.logger.exception("Error al eliminar la venta")
+            flash("Error al eliminar la venta. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("ventas.listar_ventas"))

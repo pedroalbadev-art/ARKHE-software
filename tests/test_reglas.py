@@ -1,0 +1,184 @@
+"""
+tests/test_reglas.py
+--------------------
+Pruebas de las reglas de negocio ya implementadas (las que el CLAUDE.md
+pide no romper), ejercidas a traves de la API REST contra una base
+temporal (ver tests/conftest.py). Sirven de red de seguridad: si un
+cambio futuro rompe una regla, alguna de estas pruebas falla.
+
+  RN-01..RN-04  Ventas: estado del apartamento
+  RN-05..RN-09  Pagos: abonos y estado calculado de la venta
+  RN-10..RN-14  Eliminaciones bloqueadas (409)
+  RN-15..RN-17  Contrato de la API (404, 400, contrasena oculta)
+"""
+
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+from models import db
+from models.proyecto import Proyecto
+
+from tests.conftest import entrar_como
+
+VALOR = 200000000
+
+
+@pytest.fixture(autouse=True)
+def _sesion_de_administrador(api, datos):
+    """La API exige sesion: todas las pruebas de este archivo se
+    ejecutan como Administrador (el rol que puede hacer todo), porque
+    aqui se prueban las reglas de negocio, no los permisos."""
+    entrar_como(api, "Administrador")
+
+
+def crear_venta(api, datos, **cambios):
+    cuerpo = {"id_cliente": datos["id_cliente"], "id_apartamento": datos["id_apartamento"],
+              "fecha_venta": datos["fecha_venta"], "valor_venta": VALOR}
+    cuerpo.update(cambios)
+    return api.post("/api/ventas", json=cuerpo)
+
+
+def crear_pago(api, datos, id_venta, monto, **cambios):
+    cuerpo = {"id_venta": id_venta, "fecha_pago": datos["fecha_pago"],
+              "monto": monto, "metodo_pago": "Transferencia"}
+    cuerpo.update(cambios)
+    return api.post("/api/pagos", json=cuerpo)
+
+
+def estado_apartamento(api, datos):
+    return api.get(f"/api/apartamentos/{datos['id_apartamento']}").get_json()["estado"]
+
+
+@pytest.fixture
+def venta(api, datos):
+    """Una venta ya registrada; devuelve su ID."""
+    return crear_venta(api, datos).get_json()["id_venta"]
+
+
+# ---------------------------------------------------------------------
+# Ventas
+# ---------------------------------------------------------------------
+class TestVentas:
+
+    def test_rn01_registrar_venta_deja_el_apartamento_vendido(self, api, datos):
+        respuesta = crear_venta(api, datos)
+        assert respuesta.status_code == 201
+        assert estado_apartamento(api, datos) == "vendido"
+
+    def test_rn02_eliminar_venta_devuelve_el_apartamento_a_disponible(self, api, datos, venta):
+        assert api.delete(f"/api/ventas/{venta}").status_code == 200
+        assert estado_apartamento(api, datos) == "disponible"
+
+    def test_rn03_un_apartamento_no_se_vende_dos_veces(self, api, datos, venta):
+        respuesta = crear_venta(api, datos)
+        assert respuesta.status_code == 400
+        assert "errores" in respuesta.get_json()
+
+    def test_rn04_la_fecha_de_venta_no_puede_ser_futura(self, api, datos):
+        respuesta = crear_venta(api, datos, fecha_venta=datos["manana"])
+        assert respuesta.status_code == 400
+        assert estado_apartamento(api, datos) == "disponible"
+
+
+# ---------------------------------------------------------------------
+# Pagos (abonos)
+# ---------------------------------------------------------------------
+class TestPagos:
+
+    def test_rn05_el_pago_no_puede_superar_el_saldo(self, api, datos, venta):
+        assert crear_pago(api, datos, venta, VALOR + 1).status_code == 400
+        # Con un abono previo, el tope es el saldo restante, no el valor total.
+        assert crear_pago(api, datos, venta, 150000000).status_code == 201
+        assert crear_pago(api, datos, venta, 50000001).status_code == 400
+        assert crear_pago(api, datos, venta, 50000000).status_code == 201
+
+    def test_rn06_la_fecha_de_pago_no_puede_ser_futura(self, api, datos, venta):
+        assert crear_pago(api, datos, venta, 1000, fecha_pago=datos["manana"]).status_code == 400
+
+    def test_rn07_la_fecha_de_pago_no_puede_ser_anterior_a_la_venta(self, api, datos, venta):
+        respuesta = crear_pago(api, datos, venta, 1000, fecha_pago=datos["antes_de_la_venta"])
+        assert respuesta.status_code == 400
+
+    def test_rn08_el_metodo_de_pago_debe_estar_en_la_lista(self, api, datos, venta):
+        assert crear_pago(api, datos, venta, 1000, metodo_pago="Bitcoin").status_code == 400
+
+    def test_rn09_el_estado_de_la_venta_se_calcula_con_los_pagos(self, api, datos, venta):
+        def consultar():
+            return api.get(f"/api/ventas/{venta}").get_json()
+
+        assert consultar()["estado"] == "pendiente"
+
+        crear_pago(api, datos, venta, 80000000)
+        parcial = consultar()
+        assert parcial["estado"] == "en-pago"
+        assert parcial["total_pagado"] == 80000000
+        assert parcial["saldo"] == 120000000
+
+        crear_pago(api, datos, venta, 120000000)
+        final = consultar()
+        assert final["estado"] == "pagada"
+        assert final["saldo"] == 0
+
+
+# ---------------------------------------------------------------------
+# Eliminaciones bloqueadas
+# ---------------------------------------------------------------------
+class TestEliminacionesBloqueadas:
+
+    def test_rn10_proyecto_con_apartamentos(self, api, datos):
+        assert api.delete(f"/api/proyectos/{datos['id_proyecto']}").status_code == 409
+
+    def test_rn11_apartamento_con_venta(self, api, datos, venta):
+        assert api.delete(f"/api/apartamentos/{datos['id_apartamento']}").status_code == 409
+
+    def test_rn12_venta_con_pagos(self, api, datos, venta):
+        crear_pago(api, datos, venta, 1000)
+        assert api.delete(f"/api/ventas/{venta}").status_code == 409
+        assert estado_apartamento(api, datos) == "vendido"
+
+    def test_rn13_cliente_con_proyectos_o_ventas(self, api, datos):
+        assert api.delete(f"/api/clientes/{datos['id_cliente']}").status_code == 409
+
+    def test_rn14_usuario_que_gestiona_proyectos(self, api, datos):
+        assert api.delete(f"/api/usuarios/{datos['id_usuario']}").status_code == 409
+
+
+# ---------------------------------------------------------------------
+# Contrato de la API
+# ---------------------------------------------------------------------
+class TestContratoApi:
+
+    def test_rn15_registro_inexistente_responde_404(self, api, datos):
+        for recurso in ("clientes", "usuarios", "proyectos", "apartamentos", "ventas", "pagos"):
+            assert api.get(f"/api/{recurso}/999999").status_code == 404
+
+    def test_rn16_datos_invalidos_responden_400_con_lista_de_errores(self, api, datos):
+        respuesta = api.post("/api/clientes", json={"nombre": "Ana1", "apellido": "",
+                                                    "documento": "abc", "correo": "sin-arroba",
+                                                    "telefono": "12"})
+        assert respuesta.status_code == 400
+        assert len(respuesta.get_json()["errores"]) == 5
+
+    def test_rn17_la_api_nunca_devuelve_la_contrasena(self, api, datos):
+        respuesta = api.post("/api/usuarios", json={"nombre": "Eva", "apellido": "Diaz",
+                                                    "correo": "eva@ejemplo.com",
+                                                    "contrasena": "ClaveSegura1", "rol": "Vendedor"})
+        assert respuesta.status_code == 201
+        for usuario in [respuesta.get_json()] + api.get("/api/usuarios").get_json():
+            assert "contrasena" not in usuario
+            assert "ClaveSegura1" not in str(usuario)
+
+
+# ---------------------------------------------------------------------
+# La base de pruebas se comporta como MySQL con las llaves foraneas
+# ---------------------------------------------------------------------
+def test_la_base_de_pruebas_exige_llaves_foraneas(app):
+    """Si PRAGMA foreign_keys no estuviera activo, SQLite aceptaria un
+    proyecto con un cliente inexistente y las pruebas de arriba darian
+    una falsa tranquilidad."""
+    with app.app_context():
+        db.session.add(Proyecto(id_cliente=999, id_usuario=999, nombre_proyecto="Huerfano",
+                                direccion="Calle 1", ciudad="Cali"))
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()

@@ -21,12 +21,13 @@ Validaciones en el backend:
 
 from datetime import date
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from models import db
 from models.pago import METODOS_PAGO, Pago
 from models.venta import Venta
 from utils.formato import formato_pesos
+from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura
 
 pagos_bp = Blueprint("pagos", __name__)
@@ -42,7 +43,7 @@ def validar_datos_pago(form, pago=None):
 
     fecha = a_fecha(form.get("fecha_pago"))
     if fecha is None:
-        errores.append("La fecha de pago es obligatoria y debe ser valida.")
+        errores.append("La fecha de pago es obligatoria y debe ser válida.")
     elif es_fecha_futura(fecha):
         errores.append("La fecha de pago no puede ser futura.")
     elif venta is not None and fecha < venta.fecha_venta:
@@ -50,7 +51,7 @@ def validar_datos_pago(form, pago=None):
 
     monto = a_decimal(form.get("monto"))
     if monto is None or monto <= 0:
-        errores.append("El monto debe ser un numero mayor que 0 (sin puntos de miles).")
+        errores.append("El monto debe ser un número mayor que 0 (sin puntos de miles).")
     elif venta is not None:
         saldo_disponible = venta.saldo
         if pago is not None and pago.id_venta == venta.id_venta:
@@ -60,7 +61,7 @@ def validar_datos_pago(form, pago=None):
 
     metodo = (form.get("metodo_pago") or "").strip()
     if metodo not in METODOS_PAGO:
-        errores.append("Seleccione un metodo de pago valido.")
+        errores.append("Seleccione un método de pago válido.")
 
     datos = dict(id_venta=id_venta, fecha_pago=fecha, monto=monto, metodo_pago=metodo)
     return errores, datos
@@ -82,6 +83,7 @@ def _formulario(datos, accion, pago=None):
 
 
 @pagos_bp.route("/", methods=["GET"])
+@rol_requerido("pagos", "ver")
 def listar_pagos():
     consulta = Pago.query
     venta = None
@@ -94,12 +96,14 @@ def listar_pagos():
 
 
 @pagos_bp.route("/nuevo", methods=["GET"])
+@rol_requerido("pagos", "editar")
 def formulario_nuevo():
     datos = {"id_venta": request.args.get("venta", ""), "fecha_pago": date.today().isoformat()}
     return _formulario(datos, "crear")
 
 
 @pagos_bp.route("/crear", methods=["POST"])
+@rol_requerido("pagos", "editar")
 def crear_pago():
     errores, datos = validar_datos_pago(request.form)
     if errores:
@@ -112,13 +116,15 @@ def crear_pago():
         db.session.commit()
         flash(f"Pago de {formato_pesos(datos['monto'])} registrado para la venta #{datos['id_venta']}.", "exito")
         return redirect(url_for("pagos.listar_pagos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al registrar el pago: {e}", "error")
+        current_app.logger.exception("Error al registrar el pago")
+        flash("Error al registrar el pago. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "crear")
 
 
 @pagos_bp.route("/<int:id>/editar", methods=["GET"])
+@rol_requerido("pagos", "editar")
 def formulario_editar(id):
     pago = db.session.get(Pago, id)
     if not pago:
@@ -134,6 +140,7 @@ def formulario_editar(id):
 
 
 @pagos_bp.route("/<int:id>/actualizar", methods=["POST"])
+@rol_requerido("pagos", "editar")
 def actualizar_pago(id):
     pago = db.session.get(Pago, id)
     if not pago:
@@ -152,13 +159,15 @@ def actualizar_pago(id):
         db.session.commit()
         flash(f"Pago #{pago.id_pago} actualizado correctamente.", "exito")
         return redirect(url_for("pagos.listar_pagos"))
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        flash(f"Error al actualizar el pago: {e}", "error")
+        current_app.logger.exception("Error al actualizar el pago")
+        flash("Error al actualizar el pago. Intente de nuevo o avise al administrador.", "error")
         return _formulario(request.form, "editar", pago)
 
 
 @pagos_bp.route("/<int:id>/eliminar", methods=["POST"])
+@rol_requerido("pagos", "eliminar")
 def eliminar_pago(id):
     pago = db.session.get(Pago, id)
     if not pago:
@@ -168,7 +177,8 @@ def eliminar_pago(id):
             db.session.delete(pago)
             db.session.commit()
             flash(f"Pago #{id} eliminado correctamente.", "exito")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            flash(f"Error al eliminar el pago: {e}", "error")
+            current_app.logger.exception("Error al eliminar el pago")
+            flash("Error al eliminar el pago. Intente de nuevo o avise al administrador.", "error")
     return redirect(url_for("pagos.listar_pagos"))

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - ARKHE{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block titulo_pagina %}Dashboard{% endblock %}
 
 {% macro kpi(titulo, valor, nota, icono, enlace, dinero=false) %}
-  <a class="kpi" href="{{ enlace }}" style="text-decoration:none;">
+  <a class="kpi" href="{{ enlace }}">
     <div>
       <p class="kpi-titulo">{{ titulo }}</p>
       <p class="kpi-valor {{ 'dinero' if dinero }}">{{ valor }}</p>
@@ -38,7 +38,7 @@
     <!-- Ventas por mes: una sola serie, color dorado, sin leyenda -->
     <div class="tarjeta">
       <h3>Ventas mensuales</h3>
-      <div class="grafico" role="img" aria-label="Valor vendido en los ultimos 6 meses">
+      <div class="grafico" role="img" aria-label="Valor vendido en los últimos 6 meses">
         {% for etiqueta, total, cantidad, alto in ventas_por_mes %}
           <div class="grafico-col">
             <span class="grafico-tip">{{ etiqueta }}: {{ total|pesos }} &middot; {{ cantidad }} venta(s)</span>
@@ -50,31 +50,31 @@
       <div class="grafico-etiquetas">
         {% for etiqueta, total, cantidad, alto in ventas_por_mes %}<span>{{ etiqueta }}</span>{% endfor %}
       </div>
-      <p class="nota">Valor de venta por mes, ultimos 6 meses (segun la fecha de venta).</p>
+      <p class="nota">Valor de venta por mes, últimos 6 meses (según la fecha de venta).</p>
     </div>
 
     <!-- Estado de apartamentos y de ventas -->
     <div class="tarjeta">
       <h3>Estado de apartamentos</h3>
-      {% for texto, valor, color in [('Disponibles', apartamentos_disponibles, '#16A34A'),
-                                     ('Reservados', apartamentos_reservados, '#D97706'),
-                                     ('Vendidos', apartamentos_vendidos, '#DC2626')] %}
+      {% for texto, valor, color in [('Disponibles', apartamentos_disponibles, 'ok'),
+                                     ('Reservados', apartamentos_reservados, 'aviso'),
+                                     ('Vendidos', apartamentos_vendidos, 'peligro')] %}
       <div class="progreso">
         <div class="progreso-cabecera"><span>{{ texto }}</span><span>{{ valor }}</span></div>
         <div class="progreso-barra">
-          <div style="width: {{ (valor * 100 / total_apartamentos)|round(1) if total_apartamentos else 0 }}%; background: {{ color }};"></div>
+          <div class="progreso-{{ color }}" style="width: {{ (valor * 100 / total_apartamentos)|round(1) if total_apartamentos else 0 }}%;"></div>
         </div>
       </div>
       {% endfor %}
 
-      <h3 style="margin-top:28px;">Estado de ventas</h3>
-      {% for texto, valor, color in [('Pendientes (sin pagos)', ventas_pendientes, '#D97706'),
-                                     ('En pago', ventas_en_pago, '#2563EB'),
-                                     ('Pagadas', ventas_pagadas, '#16A34A')] %}
+      <h3 class="con-espacio">Estado de ventas</h3>
+      {% for texto, valor, color in [('Pendientes (sin pagos)', ventas_pendientes, 'aviso'),
+                                     ('En pago', ventas_en_pago, 'info'),
+                                     ('Pagadas', ventas_pagadas, 'ok')] %}
       <div class="progreso">
         <div class="progreso-cabecera"><span>{{ texto }}</span><span>{{ valor }}</span></div>
         <div class="progreso-barra">
-          <div style="width: {{ (valor * 100 / total_ventas)|round(1) if total_ventas else 0 }}%; background: {{ color }};"></div>
+          <div class="progreso-{{ color }}" style="width: {{ (valor * 100 / total_ventas)|round(1) if total_ventas else 0 }}%;"></div>
         </div>
       </div>
       {% endfor %}
@@ -84,7 +84,7 @@
 
   <!-- Ultimas ventas -->
   <div class="tarjeta">
-    <h3>Ultimas ventas registradas</h3>
+    <h3>Últimas ventas registradas</h3>
     {% if ultimas_ventas %}
     <div class="tabla-wrap">
       <table class="table tabla-compacta">
@@ -106,18 +106,24 @@
       </table>
     </div>
     {% else %}
-      <p class="vacio">Aun no hay ventas registradas.</p>
+      <div class="vacio">
+        <p class="vacio-titulo">Aún no hay ventas registradas</p>
+        <p class="vacio-texto">Aquí aparecerán las cinco ventas más recientes.</p>
+        {% if puede('ventas', 'editar') %}
+        <a href="{{ url_for('ventas.formulario_nuevo') }}" class="btn btn-primary">+ Nueva Venta</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 
   <!-- Ultimos pagos -->
   <div class="tarjeta">
-    <h3>Ultimos pagos registrados</h3>
+    <h3>Últimos pagos registrados</h3>
     {% if ultimos_pagos %}
     <div class="tabla-wrap">
       <table class="table tabla-compacta">
         <thead>
-          <tr><th>Cliente</th><th>Venta</th><th class="num">Monto</th><th class="centro">Fecha</th><th class="centro">Metodo</th></tr>
+          <tr><th>Cliente</th><th>Venta</th><th class="num">Monto</th><th class="centro">Fecha</th><th class="centro">Método</th></tr>
         </thead>
         <tbody>
           {% for pago in ultimos_pagos %}
@@ -126,14 +132,20 @@
             <td class="suave">#{{ pago.id_venta }} &middot; Apto {{ pago.venta.apartamento.numero_apartamento }}</td>
             <td class="num fuerte">{{ pago.monto|pesos }}</td>
             <td class="centro suave">{{ pago.fecha_pago.strftime('%d/%m/%Y') }}</td>
-            <td class="centro suave">{{ pago.metodo_pago }}</td>
+            <td class="centro suave">{{ pago.metodo_pago|metodo }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-      <p class="vacio">Aun no hay pagos registrados.</p>
+      <div class="vacio">
+        <p class="vacio-titulo">Aún no hay pagos registrados</p>
+        <p class="vacio-texto">Aquí aparecerán los cinco pagos más recientes.</p>
+        {% if puede('pagos', 'editar') %}
+        <a href="{{ url_for('pagos.formulario_nuevo') }}" class="btn btn-primary">+ Registrar Pago</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 {% endblock %}

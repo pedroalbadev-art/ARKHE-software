@@ -1,42 +1,43 @@
 {% extends "base.html" %}
 
-{% block title %}Editar Usuario - ARKHE{% endblock %}
+{% block title %}Editar Usuario{% endblock %}
 {% block titulo_pagina %}Editar Usuario{% endblock %}
 
 {% block content %}
   <div class="tarjeta form-card">
     <h3>{{ usuario.nombre_completo }}</h3>
     <form method="post" action="{{ url_for('usuarios.actualizar_usuario', id_usuario=usuario.id_usuario) }}" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
-        <label>Nombre</label>
-        <input type="text" name="nombre" value="{{ usuario.nombre }}" required
+        <label for="campo-nombre">Nombre</label>
+        <input id="campo-nombre" type="text" name="nombre" value="{{ usuario.nombre }}" required
                pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
       </div>
       <div class="form-group">
-        <label>Apellido</label>
-        <input type="text" name="apellido" value="{{ usuario.apellido }}" required
+        <label for="campo-apellido">Apellido</label>
+        <input id="campo-apellido" type="text" name="apellido" value="{{ usuario.apellido }}" required
                pattern="[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+" title="Solo letras y espacios">
       </div>
       <div class="form-group full">
-        <label>Correo electronico</label>
-        <input type="email" name="correo" value="{{ usuario.correo }}" required>
+        <label for="campo-correo">Correo electrónico</label>
+        <input id="campo-correo" type="email" name="correo" value="{{ usuario.correo }}" required>
       </div>
       <div class="form-group full">
-        <label>Nueva contraseña</label>
-        <input type="password" name="contrasena" placeholder="Minimo 8 caracteres" minlength="8">
+        <label for="campo-contrasena">Nueva contraseña</label>
+        <input id="campo-contrasena" type="password" name="contrasena" placeholder="Mínimo 8 caracteres" minlength="8">
         <small>Dejar en blanco para no cambiarla.</small>
       </div>
       <div class="form-group">
-        <label>Rol</label>
-        <select name="rol" required>
+        <label for="campo-rol">Rol</label>
+        <select id="campo-rol" name="rol" required>
           {% for rol in roles %}
           <option value="{{ rol }}" {{ 'selected' if usuario.rol == rol }}>{{ rol }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="form-group">
-        <label>Estado</label>
-        <select name="estado" required>
+        <label for="campo-estado">Estado</label>
+        <select id="campo-estado" name="estado" required>
           <option value="activo" {{ 'selected' if usuario.estado == 'activo' }}>Activo</option>
           <option value="inactivo" {{ 'selected' if usuario.estado == 'inactivo' }}>Inactivo</option>
         </select>
