@@ -106,7 +106,13 @@
       </table>
     </div>
     {% else %}
-      <p class="vacio">Aun no hay ventas registradas.</p>
+      <div class="vacio">
+        <p class="vacio-titulo">Aún no hay ventas registradas</p>
+        <p class="vacio-texto">Aquí aparecerán las cinco ventas más recientes.</p>
+        {% if puede('ventas', 'editar') %}
+        <a href="{{ url_for('ventas.formulario_nuevo') }}" class="btn btn-primary">+ Nueva Venta</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 
@@ -133,7 +139,13 @@
       </table>
     </div>
     {% else %}
-      <p class="vacio">Aun no hay pagos registrados.</p>
+      <div class="vacio">
+        <p class="vacio-titulo">Aún no hay pagos registrados</p>
+        <p class="vacio-texto">Aquí aparecerán los cinco pagos más recientes.</p>
+        {% if puede('pagos', 'editar') %}
+        <a href="{{ url_for('pagos.formulario_nuevo') }}" class="btn btn-primary">+ Registrar Pago</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 {% endblock %}

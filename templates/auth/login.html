@@ -18,11 +18,8 @@
       <p>Gestión inmobiliaria integral</p>
     </div>
 
-    {% with mensajes = get_flashed_messages(with_categories=true) %}
-      {% for categoria, mensaje in mensajes %}
-        <div class="alert alert-{{ categoria }}" role="alert"><span>{{ mensaje }}</span></div>
-      {% endfor %}
-    {% endwith %}
+    {% from "_componentes.html" import alertas %}
+    {{ alertas() }}
 
     <form method="post" action="{{ url_for('auth.login') }}" class="login-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -42,5 +39,6 @@
 
     <p class="login-nota">¿No tiene cuenta? Solicite acceso al administrador del sistema.</p>
   </main>
+  <script src="{{ url_for('static', filename='js/arkhe.js') }}"></script>
 </body>
 </html>

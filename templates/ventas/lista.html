@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_componentes.html" import estado_vacio %}
 
 {% block title %}Ventas - ARKHE{% endblock %}
 {% block titulo_pagina %}Gestion de Ventas{% endblock %}
@@ -73,7 +74,7 @@
                 {# Eliminar ventas: solo el Administrador. #}
                 {% if not venta.pagos and puede('ventas', 'eliminar') %}
                 <form method="POST" action="{{ url_for('ventas.eliminar_venta', id=venta.id_venta) }}"
-                      onsubmit="return confirm('¿Eliminar la venta #{{ venta.id_venta }}? El apartamento volvera a estar disponible.');">
+                      data-confirmar="¿Eliminar la venta #{{ venta.id_venta }}? El apartamento volverá a estar disponible.">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
@@ -82,7 +83,10 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="8" class="vacio">Aun no hay ventas registradas.</td></tr>
+          {{ estado_vacio(8, 'Aún no hay ventas registradas',
+                          'Al registrar una venta, el apartamento pasa a "vendido" y se pueden recibir pagos.',
+                          '+ Nueva Venta' if puede('ventas', 'editar'),
+                          url=url_for('ventas.formulario_nuevo')) }}
           {% endfor %}
         </tbody>
       </table>

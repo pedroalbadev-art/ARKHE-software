@@ -218,7 +218,31 @@ body {
 .alert-exito { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
 .alert-error { background: #FEF2F2; color: #991B1B; border-color: #FECACA; }
 .alert-info  { background: var(--tinte); color: var(--bronce-medio); border-color: var(--tinte-borde); }
-.alert-cerrar { background: none; border: none; font-size: 20px; line-height: 1; cursor: pointer; color: inherit; }
+/* Icono a la izquierda, texto al centro (ocupa el espacio) y cierre a la derecha */
+.alert { justify-content: flex-start; border-left-width: 4px; }
+.alert-icono {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.alert-texto { flex: 1; }
+.alert-cerrar {
+    background: none;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+}
+.alert-cerrar:hover, .alert-cerrar:focus-visible { opacity: 1; background: rgba(0, 0, 0, 0.06); }
 
 /* ================= Botones ================= */
 .btn {
@@ -304,7 +328,25 @@ body {
 .badge-gerente { background: #DBEAFE; color: #1E40AF; border: 1px solid #93C5FD; }
 .badge-vendedor { background: #F3E8FF; color: #6B21A8; border: 1px solid #D8B4FE; }
 
+/* Estado vacio: icono, titulo, explicacion y boton para crear el primero */
 .vacio { text-align: center; padding: 40px 16px; color: var(--texto-suave); }
+.vacio-icono {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    border-radius: 50%;
+    background: var(--tinte);
+    color: var(--dorado);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    box-sizing: content-box;
+}
+.vacio-titulo { margin: 12px 0 4px; font-size: 15px; font-weight: 600; color: var(--texto); }
+.vacio-texto { margin: 0 0 16px; font-size: 13px; }
+.vacio > p:last-child { margin-bottom: 0; }
 
 /* ================= Barras de progreso (estado de apartamentos) ================= */
 .progreso + .progreso { margin-top: 16px; }
@@ -397,6 +439,18 @@ body {
 .modal-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .modal-cerrar { background: none; border: none; font-size: 24px; color: var(--texto-suave); cursor: pointer; line-height: 1; }
 .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+
+/* Ventana de confirmacion (eliminar / desactivar) */
+.modal-confirmar { max-width: 420px; }
+.confirmar-mensaje { margin: 0; font-size: 15px; color: var(--texto); overflow-wrap: anywhere; }
+.modal-confirmar .nota { margin: 0; }
+.modal-confirmar .form-actions { margin-top: 8px; }
+.btn-peligro { background: #B91C1C; color: #fff; }
+.btn-peligro:hover { background: #991B1B; }
+.btn:focus-visible, .modal-cerrar:focus-visible {
+    outline: 2px solid var(--dorado);
+    outline-offset: 2px;
+}
 
 /* ================= Usuario conectado (encabezado) ================= */
 .sesion { display: flex; align-items: center; gap: 12px; margin-left: auto; }

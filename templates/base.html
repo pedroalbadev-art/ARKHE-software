@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/arkhe.css') }}">
 </head>
 <body>
+  {% from "_componentes.html" import alertas %}
   {#
     Plantilla base de TODOS los modulos (GA7-AA5-EV03).
     Sigue el mockup de Dashboard/Clientes de la evidencia de frontend:
@@ -65,14 +66,9 @@
       </header>
 
       <main class="contenido">
-        {% with mensajes = get_flashed_messages(with_categories=true) %}
-          {% for categoria, mensaje in mensajes %}
-            <div class="alert alert-{{ categoria }}">
-              <span>{{ mensaje }}</span>
-              <button type="button" class="alert-cerrar" onclick="this.parentElement.remove()" aria-label="Cerrar">&times;</button>
-            </div>
-          {% endfor %}
-        {% endwith %}
+        {# Si la pagina se muestra con un modal abierto por un error (abrir_modal),
+           los mensajes se dibujan dentro del modal: aqui quedarian tapados. #}
+        {% if not abrir_modal %}{{ alertas() }}{% endif %}
 
         {% block content %}{% endblock %}
       </main>
@@ -81,37 +77,28 @@
     </div>
   </div>
 
-  <script>
-    // Buscador y filtros de las tablas (solo filtran lo que ya se ve en
-    // pantalla; no consultan la base de datos). Una tabla participa si
-    // tiene id="tabla-datos"; cada fila puede declarar data-filtro-xxx y
-    // cada <select data-filtro="xxx"> filtra por ese atributo.
-    (function () {
-      var tabla = document.getElementById("tabla-datos");
-      if (!tabla) return;
-      var buscador = document.getElementById("buscador");
-      var selects = document.querySelectorAll("select[data-filtro]");
-      var contador = document.getElementById("contador-visibles");
-      function aplicar() {
-        var texto = buscador ? buscador.value.trim().toLowerCase() : "";
-        var visibles = 0;
-        tabla.querySelectorAll("tbody tr[data-fila]").forEach(function (fila) {
-          var ok = !texto || fila.textContent.toLowerCase().indexOf(texto) !== -1;
-          selects.forEach(function (s) {
-            if (s.value && fila.getAttribute("data-filtro-" + s.dataset.filtro) !== s.value) ok = false;
-          });
-          fila.style.display = ok ? "" : "none";
-          if (ok) visibles++;
-        });
-        if (contador) contador.textContent = visibles;
-      }
-      if (buscador) buscador.addEventListener("input", aplicar);
-      selects.forEach(function (s) { s.addEventListener("change", aplicar); });
-    })();
+  {#
+    Ventana de confirmacion comun (eliminar, desactivar). La abre
+    static/js/arkhe.js cuando se envia un formulario con data-confirmar,
+    y escribe el mensaje con textContent (texto literal, nunca codigo).
+  #}
+  <div class="modal-overlay" id="modalConfirmar" role="dialog" aria-modal="true" aria-labelledby="confirmarTitulo">
+    <div class="modal-card modal-confirmar">
+      <div class="modal-header">
+        <h2 id="confirmarTitulo">Confirmar acción</h2>
+        <button type="button" class="modal-cerrar" data-cerrar-modal aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmarMensaje" class="confirmar-mensaje"></p>
+        <p class="nota" id="confirmarNota">Esta acción no se puede deshacer.</p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" data-cerrar-modal data-foco-inicial>Cancelar</button>
+          <button type="button" class="btn btn-peligro" id="confirmarAceptar">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    // Ventana modal (usada por "Nuevo Cliente" y "Nuevo Usuario").
-    function abrirModal(id) { document.getElementById(id).classList.add("abierto"); }
-    function cerrarModal(id) { document.getElementById(id).classList.remove("abierto"); }
-  </script>
+  <script src="{{ url_for('static', filename='js/arkhe.js') }}"></script>
 </body>
 </html>

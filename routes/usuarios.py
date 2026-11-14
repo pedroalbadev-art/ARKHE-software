@@ -126,9 +126,21 @@ def motivo_bloqueo_usuario(usuario, actual, rol_nuevo=None, estado_nuevo=None, e
 def listar_usuarios():
     """Muestra la tabla con todos los usuarios registrados, ordenados
     alfabeticamente por nombre."""
+    return _lista()
+
+
+def _lista(valores=None):
+    """Dibuja el listado. Si llegan `valores` (lo escrito en el modal
+    "Nuevo Usuario" cuando hubo un error), la pagina se muestra con el
+    modal abierto y esos datos puestos. La contraseña nunca se devuelve
+    al formulario: la plantilla no la usa y hay que escribirla de nuevo."""
     usuarios = Usuario.query.order_by(Usuario.nombre).all()
     return render_template(
-        "usuarios/lista.html", usuarios=usuarios, roles=sorted(ROLES_VALIDOS)
+        "usuarios/lista.html",
+        usuarios=usuarios,
+        roles=sorted(ROLES_VALIDOS),
+        valores=valores or {},
+        abrir_modal=valores is not None,
     )
 
 
@@ -142,7 +154,8 @@ def crear_usuario():
     if errores:
         for error in errores:
             flash(error, "error")
-        return redirect(url_for("usuarios.listar_usuarios"))
+        # Se vuelve a mostrar la lista con el modal abierto y lo escrito.
+        return _lista(valores=request.form)
 
     nuevo_usuario = Usuario(
         nombre=request.form["nombre"].strip(),
@@ -159,7 +172,7 @@ def crear_usuario():
     except IntegrityError:
         db.session.rollback()
         flash("Ya existe un usuario registrado con ese correo.", "error")
-        return redirect(url_for("usuarios.listar_usuarios"))
+        return _lista(valores=request.form)
 
     flash(f"Usuario '{nuevo_usuario.nombre_completo}' creado correctamente.", "exito")
     return redirect(url_for("usuarios.listar_usuarios"))

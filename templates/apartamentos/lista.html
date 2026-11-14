@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_componentes.html" import estado_vacio %}
 
 {% block title %}Apartamentos - ARKHE{% endblock %}
 {% block titulo_pagina %}Gestion de Apartamentos{% endblock %}
@@ -70,7 +71,7 @@
                 {% endif %}
                 {% if not apto.venta and puede('apartamentos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('apartamentos.eliminar_apartamento', id=apto.id_apartamento) }}"
-                      onsubmit="return confirm('¿Eliminar el apartamento {{ apto.numero_apartamento }}?');">
+                      data-confirmar="¿Eliminar el apartamento {{ apto.numero_apartamento }}?">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
@@ -79,7 +80,10 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="8" class="vacio">Aun no hay apartamentos registrados.</td></tr>
+          {{ estado_vacio(8, 'Aún no hay apartamentos registrados',
+                          'Los apartamentos pertenecen a un proyecto y son los que luego se venden.',
+                          '+ Nuevo Apartamento' if puede('apartamentos', 'editar'),
+                          url=url_for('apartamentos.formulario_nuevo')) }}
           {% endfor %}
         </tbody>
       </table>

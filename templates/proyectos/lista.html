@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_componentes.html" import estado_vacio %}
 
 {% block title %}Proyectos - ARKHE{% endblock %}
 {% block titulo_pagina %}Gestion de Proyectos{% endblock %}
@@ -61,7 +62,7 @@
                 {% endif %}
                 {% if puede('proyectos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('proyectos.eliminar_proyecto', id=proyecto.id_proyecto) }}"
-                      onsubmit="return confirm('¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?');">
+                      data-confirmar="¿Eliminar el proyecto {{ proyecto.nombre_proyecto }}?">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
@@ -71,7 +72,10 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="6" class="vacio">Aun no hay proyectos registrados.</td></tr>
+          {{ estado_vacio(6, 'Aún no hay proyectos registrados',
+                          'Un proyecto agrupa los apartamentos que se van a comercializar.',
+                          '+ Nuevo Proyecto' if puede('proyectos', 'editar'),
+                          url=url_for('proyectos.formulario_nuevo')) }}
           {% endfor %}
         </tbody>
       </table>

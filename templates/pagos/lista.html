@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_componentes.html" import estado_vacio %}
 
 {% block title %}Pagos - ARKHE{% endblock %}
 {% block titulo_pagina %}Gestion de Pagos{% endblock %}
@@ -64,7 +65,7 @@
                 {# Eliminar pagos: solo el Administrador. #}
                 {% if puede('pagos', 'eliminar') %}
                 <form method="POST" action="{{ url_for('pagos.eliminar_pago', id=pago.id_pago) }}"
-                      onsubmit="return confirm('¿Eliminar el pago #{{ pago.id_pago }}?');">
+                      data-confirmar="¿Eliminar el pago #{{ pago.id_pago }}?">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-sm accion-eliminar">Eliminar</button>
                 </form>
@@ -73,7 +74,10 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="vacio">Aun no hay pagos registrados{{ ' para esta venta' if venta_filtro }}.</td></tr>
+          {{ estado_vacio(7, 'Aún no hay pagos registrados' ~ (' para esta venta' if venta_filtro else ''),
+                          'Cada pago es un abono a una venta y reduce su saldo pendiente.',
+                          '+ Registrar Pago' if puede('pagos', 'editar'),
+                          url=url_for('pagos.formulario_nuevo', venta=venta_filtro.id_venta) if venta_filtro else url_for('pagos.formulario_nuevo')) }}
           {% endfor %}
         </tbody>
       </table>

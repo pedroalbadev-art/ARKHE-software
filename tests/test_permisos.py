@@ -214,21 +214,24 @@ def test_pe09_el_menu_y_los_botones_dependen_del_rol(api, datos):
     assert 'href="/usuarios/"' not in api.get("/").get_data(as_text=True)
     clientes = api.get("/clientes/").get_data(as_text=True)
     assert "+ Nuevo Cliente" in clientes and "Editar" in clientes
-    assert "Eliminar" not in clientes                 # el Vendedor no elimina
+    # Se busca el boton de la fila (clase accion-eliminar): la palabra
+    # "Eliminar" tambien esta en la ventana de confirmacion comun.
+    assert "accion-eliminar" not in clientes          # el Vendedor no elimina
     assert "+ Nuevo Proyecto" not in api.get("/proyectos/").get_data(as_text=True)
 
     entrar_como(api, GERENTE)
     assert 'href="/usuarios/"' in api.get("/").get_data(as_text=True)
     clientes = api.get("/clientes/").get_data(as_text=True)
-    assert "+ Nuevo Cliente" not in clientes and "Eliminar" not in clientes
+    assert "+ Nuevo Cliente" not in clientes and "accion-eliminar" not in clientes
     usuarios = api.get("/usuarios/").get_data(as_text=True)
     # Hay 3 usuarios, pero el boton solo aparece en la fila del Vendedor.
     assert usuarios.count(">Desactivar<") == 1
-    assert "+ Nuevo Usuario" not in usuarios and "Editar" not in usuarios
+    assert "+ Nuevo Usuario" not in usuarios and "accion-editar" not in usuarios
+    assert "accion-eliminar" not in usuarios
 
     entrar_como(api, ADMIN)
     usuarios = api.get("/usuarios/").get_data(as_text=True)
-    assert "+ Nuevo Usuario" in usuarios and "Editar" in usuarios and "Eliminar" in usuarios
+    assert "+ Nuevo Usuario" in usuarios and "accion-editar" in usuarios and "accion-eliminar" in usuarios
 
 
 def test_pe10_el_gerente_activa_y_desactiva_usuarios(app, api, datos):

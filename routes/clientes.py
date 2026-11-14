@@ -83,8 +83,21 @@ def _validar_datos_cliente(form):
 def listar_clientes():
     """Muestra la tabla con todos los clientes registrados, ordenados
     alfabeticamente por nombre."""
+    return _lista()
+
+
+def _lista(valores=None):
+    """Dibuja el listado. `valores` son los datos que la persona escribio
+    en el modal "Nuevo Cliente" cuando hubo un error: si llegan, la
+    pagina se muestra con el modal abierto y esos datos puestos, para
+    que solo corrija lo que fallo en vez de escribir todo de nuevo."""
     clientes = Cliente.query.order_by(Cliente.nombre).all()
-    return render_template("clientes/lista.html", clientes=clientes)
+    return render_template(
+        "clientes/lista.html",
+        clientes=clientes,
+        valores=valores or {},
+        abrir_modal=valores is not None,
+    )
 
 
 @clientes_bp.route("/nuevo", methods=["POST"])
@@ -98,7 +111,8 @@ def crear_cliente():
     if errores:
         for error in errores:
             flash(error, "error")
-        return redirect(url_for("clientes.listar_clientes"))
+        # Se vuelve a mostrar la lista con el modal abierto y lo escrito.
+        return _lista(valores=request.form)
 
     nuevo_cliente = Cliente(
         nombre=request.form["nombre"].strip(),
@@ -114,7 +128,7 @@ def crear_cliente():
     except IntegrityError:
         db.session.rollback()
         flash("Ya existe un cliente registrado con ese documento o correo.", "error")
-        return redirect(url_for("clientes.listar_clientes"))
+        return _lista(valores=request.form)
 
     flash(f"Cliente '{nuevo_cliente.nombre_completo}' creado correctamente.", "exito")
     return redirect(url_for("clientes.listar_clientes"))
