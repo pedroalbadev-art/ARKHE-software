@@ -12,11 +12,13 @@ cambio futuro rompe una regla, alguna de estas pruebas falla.
   RN-15..RN-17  Contrato de la API (404, 400, contrasena oculta)
   RN-18..RN-20  Ventas: cambio de apartamento al editar (API y pantalla)
   RN-21..RN-23  Apartamento vendido: aviso al pedir otro estado
+  RN-24..RN-26  Pagos: bloqueo de la fila de la venta al validar el saldo
 """
 
 import html
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 
 from models import db
@@ -222,6 +224,74 @@ class TestPagos:
         final = consultar()
         assert final["estado"] == "pagada"
         assert final["saldo"] == 0
+
+
+# ---------------------------------------------------------------------
+# Pagos: bloqueo de fila al validar el saldo
+# ---------------------------------------------------------------------
+@pytest.fixture
+def bloqueos(app):
+    """Registra que tablas se leen con bloqueo (SELECT ... FOR UPDATE)
+    durante la prueba. SQLite ignora FOR UPDATE, asi que aqui no se
+    puede probar la espera entre dos transacciones: se comprueba que la
+    aplicacion PIDE el bloqueo, que es lo que MySQL hace cumplir."""
+    tablas = []
+
+    def anotar(estado):
+        if estado.is_select and getattr(estado.statement, "_for_update_arg", None) is not None:
+            tablas.extend(t.name for t in estado.statement.get_final_froms())
+
+    with app.app_context():
+        event.listen(db.session, "do_orm_execute", anotar)
+    yield tablas
+    with app.app_context():
+        event.remove(db.session, "do_orm_execute", anotar)
+
+
+class TestBloqueoDeLaVenta:
+
+    def test_rn24_crear_pago_bloquea_la_venta_y_sus_pagos(self, api, datos, venta, bloqueos):
+        assert crear_pago(api, datos, venta, 1000).status_code == 201
+        assert "ventas" in bloqueos and "pagos" in bloqueos
+
+        # Tambien desde la pantalla.
+        bloqueos.clear()
+        respuesta = api.post("/pagos/crear", data={
+            "id_venta": venta, "fecha_pago": datos["fecha_pago"],
+            "monto": 1000, "metodo_pago": "Efectivo"})
+        assert respuesta.status_code == 302
+        assert "ventas" in bloqueos and "pagos" in bloqueos
+
+    def test_rn25_editar_pago_bloquea_la_venta_y_sus_pagos(self, api, datos, venta, bloqueos):
+        pago = crear_pago(api, datos, venta, 1000).get_json()["id_pago"]
+        cuerpo = {"id_venta": venta, "fecha_pago": datos["fecha_pago"],
+                  "monto": 2000, "metodo_pago": "Transferencia"}
+
+        bloqueos.clear()
+        assert api.put(f"/api/pagos/{pago}", json=cuerpo).status_code == 200
+        assert "ventas" in bloqueos and "pagos" in bloqueos
+
+        bloqueos.clear()
+        assert api.post(f"/pagos/{pago}/actualizar", data=cuerpo).status_code == 302
+        assert "ventas" in bloqueos and "pagos" in bloqueos
+
+    def test_rn26_el_saldo_se_calcula_igual_con_el_bloqueo(self, api, datos, venta):
+        """Al editar, el propio pago no cuenta contra el saldo; los
+        demas pagos de la venta si."""
+        primero = crear_pago(api, datos, venta, VALOR - 1000).get_json()["id_pago"]
+        assert crear_pago(api, datos, venta, 1000).status_code == 201   # saldo en cero
+        assert crear_pago(api, datos, venta, 1).status_code == 400
+
+        def editar(monto):
+            return api.put(f"/api/pagos/{primero}", json={
+                "id_venta": venta, "fecha_pago": datos["fecha_pago"],
+                "monto": monto, "metodo_pago": "Transferencia"}).status_code
+
+        assert editar(VALOR - 1000) == 200      # el mismo valor: sigue cabiendo
+        assert editar(VALOR - 999) == 400       # un peso mas ya supera la venta
+        assert editar(500) == 200               # bajar el abono libera saldo
+        assert crear_pago(api, datos, venta, VALOR - 1500).status_code == 201
+        assert api.get(f"/api/ventas/{venta}").get_json()["saldo"] == 0
 
 
 # ---------------------------------------------------------------------
