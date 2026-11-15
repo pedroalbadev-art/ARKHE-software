@@ -15,11 +15,14 @@ Validaciones en el backend:
   - Venta obligatoria y existente.
   - Fecha valida, no futura y no anterior a la fecha de la venta.
   - Monto mayor que 0 y que no supere el saldo pendiente de la venta
-    (al editar, el saldo se calcula sin contar el propio pago).
+    (al editar, el saldo se calcula sin contar el propio pago). Antes de
+    calcular el saldo se bloquea la fila de la venta (ver
+    venta_con_bloqueo), para que dos pagos simultaneos no la sobrepasen.
   - Metodo de pago dentro de la lista permitida (models/pago.py).
 """
 
 from datetime import date
+from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
@@ -33,11 +36,45 @@ from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura
 pagos_bp = Blueprint("pagos", __name__)
 
 
+def venta_con_bloqueo(id_venta):
+    """Devuelve (venta, pagos) BLOQUEANDO la fila de la venta, o
+    (None, []) si la venta no existe.
+
+    El problema que resuelve: dos personas registran al mismo tiempo un
+    pago sobre la misma venta. Sin bloqueo, las dos peticiones leen el
+    mismo saldo, las dos pasan la validacion y entre las dos lo superan.
+
+    Como funciona: with_for_update hace que la consulta sea
+    SELECT ... FOR UPDATE. MySQL deja la fila de la venta bloqueada para
+    esta transaccion hasta su commit o rollback. Si otra peticion pide
+    el mismo bloqueo, ESPERA en esta linea; cuando la primera termina,
+    la segunda continua y ya encuentra el pago de la primera, asi que
+    valida contra el saldo real.
+
+    Los pagos tambien se leen con FOR UPDATE por una razon propia de
+    MySQL: una consulta normal ve la base como estaba al empezar la
+    transaccion (lectura consistente), y no veria el pago que la otra
+    peticion acaba de guardar. Una lectura con bloqueo siempre ve lo
+    ultimo confirmado. populate_existing refresca los objetos que ya
+    estuvieran cargados en la sesion.
+
+    El bloqueo se libera solo: con el commit al guardar, o con el
+    rollback que Flask-SQLAlchemy hace al terminar la peticion si la
+    validacion falla. SQLite (la base de las pruebas) ignora FOR UPDATE.
+    """
+    venta = db.session.get(Venta, id_venta, with_for_update=True, populate_existing=True)
+    if venta is None:
+        return None, []
+    pagos = (Pago.query.filter_by(id_venta=id_venta)
+             .with_for_update().populate_existing().all())
+    return venta, pagos
+
+
 def validar_datos_pago(form, pago=None):
     errores = []
 
     id_venta = a_entero(form.get("id_venta"))
-    venta = db.session.get(Venta, id_venta) if id_venta else None
+    venta, pagos_de_la_venta = venta_con_bloqueo(id_venta) if id_venta else (None, [])
     if venta is None:
         errores.append("Debe seleccionar una venta existente.")
 
@@ -53,9 +90,11 @@ def validar_datos_pago(form, pago=None):
     if monto is None or monto <= 0:
         errores.append("El monto debe ser un número mayor que 0 (sin puntos de miles).")
     elif venta is not None:
-        saldo_disponible = venta.saldo
-        if pago is not None and pago.id_venta == venta.id_venta:
-            saldo_disponible += pago.monto  # el propio pago no cuenta contra el saldo
+        # El saldo se calcula con los pagos leidos bajo el bloqueo. Al
+        # editar, el propio pago no cuenta contra el saldo.
+        ya_pagado = sum((p.monto for p in pagos_de_la_venta
+                         if pago is None or p.id_pago != pago.id_pago), Decimal("0"))
+        saldo_disponible = Decimal(venta.valor_venta) - ya_pagado
         if monto > saldo_disponible:
             errores.append(f"El monto supera el saldo pendiente de la venta ({formato_pesos(saldo_disponible)}).")
 

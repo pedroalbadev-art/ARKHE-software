@@ -26,6 +26,7 @@ Validaciones en el backend:
 """
 
 from datetime import date
+from decimal import Decimal
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
@@ -33,6 +34,7 @@ from models import db
 from models.apartamento import Apartamento
 from models.cliente import Cliente
 from models.venta import Venta
+from routes.pagos import venta_con_bloqueo
 from utils.seguridad import rol_requerido
 from utils.validaciones import a_decimal, a_entero, a_fecha, es_fecha_futura, MAXIMO_DECIMAL_15_2
 
@@ -41,6 +43,17 @@ ventas_bp = Blueprint("ventas", __name__)
 
 def validar_datos_venta(form, venta=None):
     errores = []
+
+    # Al EDITAR, la fecha y el valor se comparan con los pagos de la
+    # venta. Se usa el mismo bloqueo de fila que al registrar un pago
+    # (routes/pagos.py): si en este instante otra peticion esta guardando
+    # un pago de esta venta, aqui se espera a que termine y se valida
+    # contra los pagos reales. Asi no se puede bajar el valor de la venta
+    # por debajo de lo pagado aprovechando una carrera. Al CREAR no hace
+    # falta: una venta nueva todavia no tiene pagos.
+    pagos = []
+    if venta is not None:
+        _, pagos = venta_con_bloqueo(venta.id_venta)
 
     id_cliente = a_entero(form.get("id_cliente"))
     if id_cliente is None or not db.session.get(Cliente, id_cliente):
@@ -60,13 +73,13 @@ def validar_datos_venta(form, venta=None):
         errores.append("La fecha de venta es obligatoria y debe ser válida.")
     elif es_fecha_futura(fecha):
         errores.append("La fecha de venta no puede ser futura.")
-    elif venta is not None and venta.pagos and fecha > min(p.fecha_pago for p in venta.pagos):
+    elif pagos and fecha > min(p.fecha_pago for p in pagos):
         errores.append("La fecha de venta no puede ser posterior al primer pago registrado.")
 
     valor = a_decimal(form.get("valor_venta"))
     if valor is None or valor <= 0 or valor > MAXIMO_DECIMAL_15_2:
         errores.append("El valor de venta debe ser un número mayor que 0 (sin puntos de miles).")
-    elif venta is not None and valor < venta.total_pagado:
+    elif valor < sum((p.monto for p in pagos), Decimal("0")):
         errores.append("El valor de venta no puede ser menor que lo ya pagado por el cliente.")
 
     datos = dict(

@@ -4,6 +4,11 @@ Documentación de apoyo. La documentación principal del sistema es el `README.m
 
 | Archivo o carpeta | Qué contiene |
 |---|---|
+| `manual_tecnico.md` | Manual técnico: arquitectura, seguridad, API, pruebas, instalación y limitaciones conocidas. |
+| `api.md` | Referencia de la API REST: campos obligatorios y opcionales de cada recurso, ejemplos de cuerpo y de respuesta, y estructura de los errores. |
+| `diccionario_de_datos.md` | Las seis tablas campo por campo (tipo, nulo, clave, valor por defecto y descripción), con las reglas de negocio que afectan a cada una. |
+| `diagrama_er.png` | Diagrama entidad-relación de la base de datos, como imagen. |
+| `diagrama_er.puml` | Código fuente del diagrama, en PlantUML. Si la base cambia, se edita este archivo y se vuelve a generar la imagen. |
 | `ARKHE_API.postman_collection.json` | Colección de Postman para probar la API REST: 36 peticiones. La primera inicia sesión; las demás crean, consultan, actualizan y eliminan cada recurso, e incluyen casos de error (400, 404 y 409). |
 | `evidencias/` | Documentos de entregas académicas anteriores. Se conservan como registro histórico y describen el proyecto tal como estaba en ese momento, no su estado actual. |
 

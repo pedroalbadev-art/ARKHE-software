@@ -49,7 +49,7 @@ from models.pago import Pago
 from models.proyecto import Proyecto
 from models.usuario import Usuario
 from models.venta import Venta
-from routes.apartamentos import validar_datos_apartamento
+from routes.apartamentos import aviso_estado_vendido, validar_datos_apartamento
 from routes.auth import autenticar
 from routes.clientes import _validar_datos_cliente as validar_datos_cliente
 from routes.pagos import validar_datos_pago
@@ -514,10 +514,17 @@ def api_actualizar_apartamento(id):
     errores, limpios = validar_datos_apartamento(datos, apto)
     if errores:
         return _errores(errores)
+    aviso = aviso_estado_vendido(datos, apto)
     for campo, valor in limpios.items():
         setattr(apto, campo, valor)
     _guardar()
-    return jsonify(apartamento_a_dict(apto))
+    respuesta = apartamento_a_dict(apto)
+    if aviso:
+        # Sigue siendo 200: los demas campos se guardaron. El campo
+        # "aviso" solo aparece cuando se pidio otro estado para un
+        # apartamento vendido.
+        respuesta["aviso"] = aviso
+    return jsonify(respuesta)
 
 
 @api_bp.route("/apartamentos/<int:id>", methods=["DELETE"])
