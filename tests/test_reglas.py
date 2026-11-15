@@ -11,13 +11,17 @@ cambio futuro rompe una regla, alguna de estas pruebas falla.
   RN-10..RN-14  Eliminaciones bloqueadas (409)
   RN-15..RN-17  Contrato de la API (404, 400, contrasena oculta)
   RN-18..RN-20  Ventas: cambio de apartamento al editar (API y pantalla)
+  RN-21..RN-23  Apartamento vendido: aviso al pedir otro estado
 """
+
+import html
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from models import db
 from models.proyecto import Proyecto
+from routes.apartamentos import AVISO_ESTADO_VENDIDO
 
 from tests.conftest import entrar_como
 
@@ -133,6 +137,51 @@ class TestVentas:
         assert respuesta.status_code == 400
         assert estado_apartamento(api, datos) == "vendido"
         assert estado_de(api, otro) == "vendido"
+
+
+# ---------------------------------------------------------------------
+# Apartamento vendido: su estado solo cambia al anular la venta
+# ---------------------------------------------------------------------
+class TestEstadoDeApartamentoVendido:
+
+    def test_rn21_la_api_avisa_y_conserva_vendido(self, api, datos, venta):
+        """Pedir otro estado no es un error (200): los demas campos se
+        guardan, el estado sigue en vendido y la respuesta lo explica."""
+        respuesta = api.put(f"/api/apartamentos/{datos['id_apartamento']}",
+                            json=cuerpo_apartamento(datos, estado="disponible", habitaciones=4))
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.get_json()
+        assert cuerpo["estado"] == "vendido"
+        assert cuerpo["habitaciones"] == 4
+        assert cuerpo["aviso"] == AVISO_ESTADO_VENDIDO
+
+    def test_rn22_la_pantalla_muestra_el_aviso(self, api, datos, venta):
+        respuesta = api.post(f"/apartamentos/{datos['id_apartamento']}/actualizar",
+                             data=cuerpo_apartamento(datos, estado="reservado"),
+                             follow_redirects=True)
+        assert respuesta.status_code == 200
+        pagina = html.unescape(respuesta.get_data(as_text=True))
+        assert AVISO_ESTADO_VENDIDO in pagina
+        assert "actualizado correctamente" in pagina
+        assert estado_apartamento(api, datos) == "vendido"
+
+    def test_rn23_sin_cambio_de_estado_no_hay_aviso(self, api, datos, venta):
+        ruta = f"/api/apartamentos/{datos['id_apartamento']}"
+        # Vendido que envia "vendido" o no envia estado: nada que avisar.
+        assert "aviso" not in api.put(ruta, json=cuerpo_apartamento(datos, estado="vendido")).get_json()
+        sin_estado = cuerpo_apartamento(datos)
+        del sin_estado["estado"]
+        assert "aviso" not in api.put(ruta, json=sin_estado).get_json()
+        # El formulario de un apartamento vendido no envia el campo estado.
+        pagina = api.post(f"/apartamentos/{datos['id_apartamento']}/actualizar",
+                          data=sin_estado, follow_redirects=True).get_data(as_text=True)
+        assert AVISO_ESTADO_VENDIDO not in html.unescape(pagina)
+        # Apartamento sin venta: el cambio de estado se aplica, sin aviso.
+        libre = crear_otro_apartamento(api, datos, estado="disponible")
+        cuerpo = api.put(f"/api/apartamentos/{libre}",
+                         json=cuerpo_apartamento(datos, "102", estado="reservado")).get_json()
+        assert cuerpo["estado"] == "reservado"
+        assert "aviso" not in cuerpo
 
 
 # ---------------------------------------------------------------------

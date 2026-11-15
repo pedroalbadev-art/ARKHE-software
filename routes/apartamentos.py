@@ -39,6 +39,26 @@ from utils.validaciones import a_decimal, a_entero, es_numero_apto_valido, MAXIM
 
 apartamentos_bp = Blueprint("apartamentos", __name__)
 
+AVISO_ESTADO_VENDIDO = ("El estado de un apartamento vendido solo cambia al anular su venta: "
+                        "el apartamento sigue como 'vendido'.")
+
+
+def aviso_estado_vendido(form, apartamento):
+    """Devuelve el aviso si se pidio cambiar el estado de un apartamento
+    que tiene venta, o None si no aplica. `form` es cualquier objeto con
+    .get() (el formulario HTML o el JSON de la API).
+
+    No es un error: los demas campos se guardan y el estado se conserva
+    en 'vendido' (ver validar_datos_apartamento). El aviso solo explica
+    por que el estado pedido no se aplico. Lo usan la pantalla y la API,
+    para que el texto sea el mismo en ambas."""
+    if apartamento is None or apartamento.venta is None:
+        return None
+    pedido = (form.get("estado") or "").strip().lower()
+    if pedido and pedido != "vendido":
+        return AVISO_ESTADO_VENDIDO
+    return None
+
 
 def validar_datos_apartamento(form, apartamento=None):
     """Devuelve (errores, datos_limpios). `apartamento` es el registro
@@ -177,12 +197,15 @@ def actualizar_apartamento(id):
         for error in errores:
             flash(error, "error")
         return _formulario(request.form, "editar", apartamento)
+    aviso = aviso_estado_vendido(request.form, apartamento)
 
     try:
         for campo, valor in datos.items():
             setattr(apartamento, campo, valor)
         db.session.commit()
         flash(f"Apartamento '{apartamento.numero_apartamento}' actualizado correctamente.", "exito")
+        if aviso:
+            flash(aviso, "info")
         return redirect(url_for("apartamentos.listar_apartamentos"))
     except Exception:
         db.session.rollback()
