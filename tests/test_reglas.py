@@ -14,9 +14,11 @@ cambio futuro rompe una regla, alguna de estas pruebas falla.
   RN-21..RN-23  Apartamento vendido: aviso al pedir otro estado
   RN-24..RN-26  Pagos: bloqueo de la fila de la venta al validar el saldo
   RN-27..RN-29  Apartamento vendido: proyecto y precio fijos
+  RN-30..RN-31  Ventas: bloqueo de la fila al editar el valor o la fecha
 """
 
 import html
+from datetime import date
 
 import pytest
 from sqlalchemy import event
@@ -360,6 +362,44 @@ class TestBloqueoDeLaVenta:
         assert editar(500) == 200               # bajar el abono libera saldo
         assert crear_pago(api, datos, venta, VALOR - 1500).status_code == 201
         assert api.get(f"/api/ventas/{venta}").get_json()["saldo"] == 0
+
+    def test_rn30_editar_venta_bloquea_la_venta_y_sus_pagos(self, api, datos, venta, bloqueos):
+        """Editar el valor de una venta usa el mismo bloqueo que los
+        pagos: las dos operaciones no pueden cruzarse."""
+        cuerpo = cuerpo_venta(datos, datos["id_apartamento"])
+
+        bloqueos.clear()
+        assert api.put(f"/api/ventas/{venta}", json=cuerpo).status_code == 200
+        assert "ventas" in bloqueos and "pagos" in bloqueos
+
+        bloqueos.clear()
+        assert api.post(f"/ventas/{venta}/actualizar", data=cuerpo).status_code == 302
+        assert "ventas" in bloqueos and "pagos" in bloqueos
+
+        # Registrar una venta nueva no bloquea nada: aun no tiene pagos.
+        otro = crear_otro_apartamento(api, datos, estado="disponible")
+        bloqueos.clear()
+        assert crear_venta(api, datos, id_apartamento=otro).status_code == 201
+        assert bloqueos == []
+
+    def test_rn31_el_valor_y_la_fecha_se_validan_contra_los_pagos(self, api, datos, venta):
+        """Con el bloqueo, las reglas siguen iguales: el valor no baja
+        de lo pagado y la fecha no pasa del primer pago."""
+        assert crear_pago(api, datos, venta, 1000).status_code == 201
+        assert crear_pago(api, datos, venta, 2000).status_code == 201
+
+        def editar(**cambios):
+            cuerpo = cuerpo_venta(datos, datos["id_apartamento"])
+            cuerpo.update(cambios)
+            return api.put(f"/api/ventas/{venta}", json=cuerpo)
+
+        assert editar(valor_venta=2999).status_code == 400      # menos de lo pagado
+        assert editar(valor_venta=3000).status_code == 200      # justo lo pagado
+        assert api.get(f"/api/ventas/{venta}").get_json()["estado"] == "pagada"
+        # La fecha de pago de la fixture es posterior a la de la venta.
+        assert editar(valor_venta=VALOR, fecha_venta=datos["fecha_pago"]).status_code == 200
+        hoy = date.today().isoformat()
+        assert editar(valor_venta=VALOR, fecha_venta=hoy).status_code == 400   # despues del primer pago
 
 
 # ---------------------------------------------------------------------
