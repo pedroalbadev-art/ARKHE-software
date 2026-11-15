@@ -34,14 +34,14 @@ ARKHE es un ERP web de gestión inmobiliaria **de propósito general**: sirve a 
 - `instalar.ps1`: instalador para Windows.
 - `database/esquema.sql`: estructura de las seis tablas.
 - `tests/`: `conftest.py` crea una base SQLite en memoria; las pruebas nunca tocan `ARKHE_V1`.
-- `docs/`: colección de Postman y evidencias de entregas anteriores. `Mockups/`: los 8 mockups HTML de referencia visual y `logo.jpg`.
+- `docs/`: manual técnico, referencia de la API (`api.md`), diccionario de datos, diagrama ER (`.puml` y `.png`), colección de Postman y evidencias de entregas anteriores. `Mockups/`: los 8 mockups HTML de referencia visual y `logo.jpg`.
 
 ## Esquema real de ARKHE_V1 (verificado; manda sobre cualquier documento)
 - **usuarios**: id_usuario PK, nombre, apellido, correo UNIQUE, contrasena (hash, 255), rol, estado (DEFAULT 'activo').
   - Roles válidos: Administrador, Vendedor, Gerente.
   - Estados válidos: activo, inactivo.
   - No existe columna `usuario`: el login es por correo.
-- **clientes**: id_cliente PK, nombre, apellido, documento UNIQUE, correo UNIQUE, telefono. No tiene `direccion`.
+- **clientes**: id_cliente PK, nombre, apellido, documento UNIQUE, correo UNIQUE, telefono. No tiene `direccion`. Son personas naturales: no hay razón social ni NIT.
 - **proyectos**: id_proyecto PK, id_cliente FK, id_usuario FK, nombre_proyecto UNIQUE, direccion, ciudad, descripcion (NULL).
 - **apartamentos**: id_apartamento PK, id_proyecto FK, numero_apartamento, area_m2, habitaciones, banos, precio, estado (disponible / reservado / vendido).
 - **ventas**: id_venta PK, id_cliente FK, id_apartamento FK UNIQUE, fecha_venta, valor_venta. No tiene columna `estado`: el estado se calcula a partir de los pagos.
@@ -59,7 +59,7 @@ FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='ARKHE_V1' ORDER BY TABLE_NAM
 ## Autenticación y seguridad (ya implementadas; no debilitarlas)
 - **Sesión:** login por correo (`/login`, `POST /api/login`). `exigir_sesion` corre antes de cada petición: solo el login y `static` son públicos. La cookie guarda solo el ID; el usuario se lee de la base en cada petición, así que una cuenta inactiva o eliminada pierde el acceso de inmediato. Cookie `HttpOnly`, `SameSite=Lax`, caduca a las 8 horas.
 - **`SECRET_KEY`:** solo desde el `.env`; sin ella la aplicación no arranca.
-- **CSRF:** `CSRFProtect` cubre toda la app; cada formulario POST lleva `csrf_token`. La API está exenta porque solo acepta JSON.
+- **CSRF:** `CSRFProtect` cubre toda la app; cada formulario POST lleva `csrf_token`. La API está exenta porque solo acepta cuerpos con `Content-Type: application/json` (400 si no) y no tiene CORS. **No habilites CORS ni aceptes otros tipos de cuerpo en la API**: la exención dejaría de ser segura.
 - **CSP:** `script-src 'self'`. Las plantillas **no** llevan JavaScript en línea (ni `<script>` con código, ni `onclick`): los elementos declaran atributos `data-...` y `static/js/arkhe.js` les da el comportamiento. Los estilos en línea sí están permitidos.
 - **Errores:** los mensajes al usuario no muestran detalles técnicos; 403, 404, 500 y CSRF responden con página propia o JSON en la API.
 
@@ -77,7 +77,10 @@ La matriz vive en un solo lugar: `PERMISOS`, en `utils/seguridad.py`. Toda ruta 
 - Nadie puede eliminar ni desactivar su propia cuenta, y el sistema nunca queda sin un Administrador activo.
 
 ## Reglas de negocio ya implementadas (no romperlas)
-- Al registrar una venta, el apartamento pasa a "vendido". Si se elimina la venta, vuelve a "disponible".
+- Al registrar una venta, el apartamento pasa a "vendido". Si se elimina la venta, vuelve a "disponible" (aunque antes estuviera reservado). Si al editar la venta se cambia de apartamento, el anterior queda "disponible" y el nuevo "vendido".
+- Un apartamento vendido no cambia de proyecto ni de precio (400 en la validación); el área, las habitaciones y los baños sí se pueden corregir.
+- Al crear o editar un pago, y al editar una venta, `venta_con_bloqueo()` (`routes/pagos.py`) bloquea la fila de la venta con `with_for_update()` antes de validar contra los pagos. No quites ese bloqueo.
+- El estado de un apartamento vendido solo cambia al anular su venta. Si al editarlo se pide otro estado, se guarda lo demás y se avisa: mensaje flash en pantalla y campo `aviso` en la API, con respuesta 200.
 - Los pagos son abonos:
   - No pueden superar el saldo de la venta.
   - La fecha no puede ser futura ni anterior a la fecha de venta.
@@ -115,8 +118,9 @@ Un cambio no se da por terminado si `pytest` no pasa completo o si se rompe alg�
 - Sin límite de intentos de inicio de sesión.
 - Sin recuperación de contraseña por correo: la restablece un Administrador o `scripts\cambiar_contrasena.py`.
 - Sin historial de cambios (quién creó o modificó cada dato).
-- Concurrencia: la validación del saldo de un pago no usa bloqueo de fila.
-- Un apartamento vendido todavía puede cambiarse de proyecto o de precio. Al eliminar la venta de un apartamento que estaba reservado, queda disponible y no reservado.
+- Al eliminar la venta de un apartamento que estaba reservado, queda disponible y no reservado: el cambio es manual.
+- No hay capa de servicios: las reglas de negocio viven en las rutas (`validar_datos_*`), que la API importa.
+- Solo clientes persona natural (nombre y apellido). Los clientes empresa (razón social y NIT) son una mejora futura.
 - Los métodos de pago se guardan sin tilde ("Tarjeta de credito") y se muestran con tilde; la API usa el valor sin tilde.
 - `python app.py` usa el servidor de desarrollo de Flask: para uso real haría falta un servidor de producción y HTTPS.
 - El instalador es solo para Windows.

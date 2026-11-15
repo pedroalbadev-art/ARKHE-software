@@ -1,0 +1,144 @@
+@startuml diagrama_er
+' ----------------------------------------------------------------------
+' Diagrama entidad-relacion de la base de datos ARKHE_V1.
+'
+' Verificado el 2026-11-14 contra la base real (MySQL 8.4.8) con
+' information_schema: COLUMNS, KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS
+' y STATISTICS. Coincide con database/esquema.sql.
+'
+' Como verlo: extension "PlantUML" de VS Code (Alt+D) o
+'   java -jar plantuml.jar docs/diagrama_er.puml
+'
+' Notacion de cada campo:
+'   *        obligatorio (NOT NULL)
+'   <<PK>>   llave primaria        <<FK>>   llave foranea
+'   <<UQ>>   valor unico (UNIQUE)
+' Notacion de las lineas (pata de gallo):
+'   ||--o{   uno a muchos (cero o mas)
+'   ||--o|   uno a cero o uno
+' ----------------------------------------------------------------------
+
+top to bottom direction
+hide circle
+hide methods
+skinparam linetype ortho
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam nodesep 35
+skinparam ranksep 30
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam backgroundColor #FFFFFF
+
+skinparam class {
+  BackgroundColor #F3ECDD
+  HeaderBackgroundColor #8A6F52
+  BorderColor #8A6F52
+  BorderThickness 1.5
+  FontColor #F3ECDD
+  FontStyle bold
+  FontSize 13
+  AttributeFontColor #3A2F20
+  AttributeFontSize 11
+  StereotypeFontColor #8A6F52
+  ArrowColor #3A2F20
+  ArrowFontColor #3A2F20
+  ArrowFontSize 10
+  ArrowThickness 1.2
+}
+skinparam title {
+  FontColor #3A2F20
+  FontSize 15
+}
+skinparam legend {
+  BackgroundColor #F3ECDD
+  BorderColor #8A6F52
+  FontColor #3A2F20
+  FontSize 10
+}
+
+title Base de datos ARKHE_V1 — Diagrama entidad-relación
+
+entity usuarios {
+  * id_usuario : INT <<PK>>
+  --
+  * nombre : VARCHAR(100)
+  * apellido : VARCHAR(100)
+  * correo : VARCHAR(150) <<UQ>>
+  * contrasena : VARCHAR(255)
+  * rol : VARCHAR(50)
+  * estado : VARCHAR(20) = 'activo'
+}
+
+entity clientes {
+  * id_cliente : INT <<PK>>
+  --
+  * nombre : VARCHAR(100)
+  * apellido : VARCHAR(100)
+  * documento : VARCHAR(20) <<UQ>>
+  * correo : VARCHAR(150) <<UQ>>
+  * telefono : VARCHAR(20)
+}
+
+entity proyectos {
+  * id_proyecto : INT <<PK>>
+  --
+  * id_cliente : INT <<FK>>
+  * id_usuario : INT <<FK>>
+  * nombre_proyecto : VARCHAR(150) <<UQ>>
+  * direccion : VARCHAR(200)
+  * ciudad : VARCHAR(100)
+  descripcion : TEXT
+}
+
+entity apartamentos {
+  * id_apartamento : INT <<PK>>
+  --
+  * id_proyecto : INT <<FK>>
+  * numero_apartamento : VARCHAR(20)
+  * area_m2 : DECIMAL(10,2)
+  * habitaciones : INT
+  * banos : INT
+  * precio : DECIMAL(15,2)
+  * estado : VARCHAR(20)
+  --
+  <<UQ>> (id_proyecto, numero_apartamento)
+}
+
+entity ventas {
+  * id_venta : INT <<PK>>
+  --
+  * id_cliente : INT <<FK>>
+  * id_apartamento : INT <<FK>> <<UQ>>
+  * fecha_venta : DATE
+  * valor_venta : DECIMAL(15,2)
+}
+
+entity pagos {
+  * id_pago : INT <<PK>>
+  --
+  * id_venta : INT <<FK>>
+  * fecha_pago : DATE
+  * monto : DECIMAL(15,2)
+  * metodo_pago : VARCHAR(50)
+}
+
+' ---- Relaciones (las 6 llaves foraneas de la base) --------------------
+' Los enlaces ocultos solo ordenan el dibujo en una columna angosta.
+usuarios -[hidden]right- clientes
+
+usuarios     ||--o{ proyectos    : gestiona
+clientes     ||--o{ proyectos    : es propietario de
+proyectos    ||--o{ apartamentos : tiene
+apartamentos ||--o| ventas       : se vende en
+clientes     ||--o{ ventas       : compra
+ventas       ||--o{ pagos        : recibe
+
+legend bottom
+  Todas las llaves primarias son AUTO_INCREMENT.
+  Todas las llaves foráneas: ON DELETE RESTRICT, ON UPDATE CASCADE.
+  Motor InnoDB, utf8mb4. La base no define restricciones CHECK:
+  los valores permitidos de rol y estado se controlan en el código.
+endlegend
+
+@enduml

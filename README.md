@@ -26,7 +26,7 @@ Es de propósito general: no está atada a ninguna empresa en particular. Los da
 | Módulo | Para qué sirve |
 |---|---|
 | Dashboard | Resumen con cifras reales: clientes, proyectos, apartamentos por estado, valor vendido, recaudo, saldo por cobrar y ventas de los últimos seis meses. |
-| Clientes | Personas o empresas: tanto los propietarios o promotores de un proyecto como los compradores. |
+| Clientes | Personas naturales (nombre y apellido): tanto los propietarios o promotores de un proyecto como los compradores. |
 | Proyectos | Cada proyecto tiene un cliente propietario o promotor y un usuario gestor. El listado muestra cuántos apartamentos tiene y cuántos están disponibles, reservados y vendidos. |
 | Apartamentos | Unidades de un proyecto, con área, habitaciones, baños, precio y estado. |
 | Ventas | Venta de un apartamento a un cliente comprador. El estado (pendiente, en pago o pagada) se calcula a partir de los pagos. |
@@ -160,6 +160,7 @@ Dos reglas protegen las cuentas: nadie puede eliminar ni desactivar la suya, y e
 ## Reglas de negocio
 
 - Al registrar una venta, el apartamento pasa a *vendido*. Si la venta se elimina, vuelve a *disponible*.
+- Un apartamento vendido no puede cambiar de proyecto, de precio ni de estado. El área, las habitaciones y los baños sí se pueden corregir.
 - Un apartamento se vende una sola vez.
 - Los pagos son abonos: no pueden superar el saldo de la venta, su fecha no puede ser futura ni anterior a la fecha de la venta, y el método debe estar en la lista permitida.
 - El estado de una venta no se guarda: se calcula. *Pendiente* sin pagos, *en pago* con abonos parciales y *pagada* con saldo en cero.
@@ -205,15 +206,15 @@ venv\Scripts\activate
 pytest
 ```
 
-Son 248 pruebas. No tocan la base de datos real: cada una usa una base temporal en memoria (SQLite) que se crea y se destruye sola.
+Son 272 pruebas. No tocan la base de datos real: cada una usa una base temporal en memoria (SQLite) que se crea y se destruye sola.
 
 | Archivo | Qué comprueba |
 |---|---|
 | `tests/test_validaciones.py`, `tests/test_formato.py` | Validadores y formato de valores. |
-| `tests/test_reglas.py` | Reglas de negocio de ventas, pagos y eliminaciones. |
+| `tests/test_reglas.py` | Reglas de negocio de ventas, pagos, eliminaciones y estado del apartamento. |
 | `tests/test_auth.py` | Inicio y cierre de sesión, usuarios inactivos. |
 | `tests/test_permisos.py` | La matriz de permisos en pantallas y API. |
-| `tests/test_seguridad.py` | Token CSRF, mensajes de error, páginas de error. |
+| `tests/test_seguridad.py` | Token CSRF, mensajes de error, páginas de error, exigencia de JSON en la API y ausencia de CORS. |
 | `tests/test_interfaz.py` | Confirmaciones, mensajes, estados vacíos, accesibilidad, CSP. |
 | `tests/test_instalacion.py` | Esquema SQL, datos de demostración e instalador. |
 
@@ -229,7 +230,8 @@ La colección tiene 36 peticiones. La primera inicia sesión y Postman conserva 
 
 - **Contraseñas:** se guarda solo su hash (`werkzeug.security`), nunca el texto.
 - **Sesión:** cookie firmada con `SECRET_KEY`, `HttpOnly`, `SameSite=Lax` y con caducidad de ocho horas. Ninguna página se abre sin sesión; un usuario desactivado pierde el acceso en su siguiente petición.
-- **CSRF:** todos los formularios llevan un token (Flask-WTF). La API queda exenta porque solo acepta JSON.
+- **CSRF:** todos los formularios llevan un token (Flask-WTF). La API queda exenta porque solo acepta cuerpos con `Content-Type: application/json`, que un formulario de otro sitio no puede enviar, y no tiene CORS habilitado.
+- **Concurrencia:** al registrar o editar un pago, y al editar una venta, se bloquea la fila de la venta. Dos operaciones simultáneas sobre la misma venta no pueden dejar los pagos por encima de su valor.
 - **XSS:** Jinja escapa todos los datos; las plantillas no llevan JavaScript en línea y la cabecera Content-Security-Policy solo permite scripts propios.
 - **Inyección SQL:** todas las consultas pasan por el ORM, con parámetros.
 - **Errores:** los mensajes al usuario no muestran detalles técnicos; el detalle queda en el registro del servidor.
@@ -279,8 +281,8 @@ Varios valores se calculan y no se guardan, para no duplicar información: el no
 - **Sin límite de intentos de inicio de sesión.** No hay bloqueo tras varios intentos fallidos.
 - **Sin recuperación de contraseña por correo.** La restablece un Administrador o el script `scripts\cambiar_contrasena.py`.
 - **Sin historial de cambios.** Las tablas no registran quién creó o modificó cada dato ni cuándo.
-- **Concurrencia.** Si dos personas registran al mismo tiempo un pago sobre la misma venta, la validación del saldo no usa bloqueo de fila.
-- **Un apartamento vendido** todavía puede cambiarse de proyecto o de precio desde su formulario. Al eliminar la venta de un apartamento que estaba reservado, queda disponible y no reservado.
+- **El estado reservado no se restaura.** Al anular la venta de un apartamento que estaba reservado, queda disponible y no reservado; si debía seguir reservado, se cambia manualmente.
+- **Solo clientes persona natural.** Un cliente se registra con nombre y apellido. Los clientes empresa (razón social y NIT) son una mejora futura.
 - **Métodos de pago.** Se guardan sin tilde ("Tarjeta de credito") y se muestran con tilde en pantalla; la API recibe y devuelve el valor sin tilde.
 - **Servidor de desarrollo.** `python app.py` usa el servidor de Flask, pensado para desarrollo. Para un uso real haría falta un servidor de producción y HTTPS.
 - **Instalador solo para Windows.** En otros sistemas se siguen los pasos de la instalación manual.
