@@ -21,6 +21,9 @@ Validaciones en el backend (no se depende solo del HTML):
   - Estado: 'disponible' o 'reservado'. 'vendido' lo asigna solo
     el modulo de Ventas; un apartamento con venta no puede cambiar de
     estado ni eliminarse.
+  - Apartamento vendido: tampoco puede cambiar de proyecto ni de precio
+    (son los datos con los que se hizo la venta). El area, las
+    habitaciones y los banos si se pueden corregir.
 
 Las plantillas se piden con el prefijo "apartamentos/" (sin
 template_folder propio), igual que Clientes y Usuarios, para que los
@@ -39,6 +42,10 @@ from utils.validaciones import a_decimal, a_entero, es_numero_apto_valido, MAXIM
 
 apartamentos_bp = Blueprint("apartamentos", __name__)
 
+ERROR_PROYECTO_VENDIDO = ("Un apartamento vendido no puede cambiar de proyecto. "
+                          "Para corregirlo, anule primero su venta.")
+ERROR_PRECIO_VENDIDO = ("Un apartamento vendido no puede cambiar de precio. "
+                        "Para corregirlo, anule primero su venta.")
 AVISO_ESTADO_VENDIDO = ("El estado de un apartamento vendido solo cambia al anular su venta: "
                         "el apartamento sigue como 'vendido'.")
 
@@ -64,10 +71,15 @@ def validar_datos_apartamento(form, apartamento=None):
     """Devuelve (errores, datos_limpios). `apartamento` es el registro
     que se esta editando (None al crear)."""
     errores = []
+    # Con venta registrada, el proyecto y el precio quedan fijos: son
+    # los datos con los que se vendio. Lo demas se puede corregir.
+    vendido = apartamento is not None and apartamento.venta is not None
 
     id_proyecto = a_entero(form.get("id_proyecto"))
     if id_proyecto is None or not db.session.get(Proyecto, id_proyecto):
         errores.append("Debe seleccionar un proyecto existente.")
+    elif vendido and id_proyecto != apartamento.id_proyecto:
+        errores.append(ERROR_PROYECTO_VENDIDO)
 
     numero = (form.get("numero_apartamento") or "").strip()
     if not numero:
@@ -98,6 +110,8 @@ def validar_datos_apartamento(form, apartamento=None):
     precio = a_decimal(form.get("precio"))
     if precio is None or precio <= 0 or precio > MAXIMO_DECIMAL_15_2:
         errores.append("El precio debe ser un número mayor que 0 (sin puntos de miles).")
+    elif vendido and precio != apartamento.precio:
+        errores.append(ERROR_PRECIO_VENDIDO)
 
     estado = (form.get("estado") or "").strip()
     if apartamento is not None and apartamento.venta is not None:

@@ -13,6 +13,7 @@ cambio futuro rompe una regla, alguna de estas pruebas falla.
   RN-18..RN-20  Ventas: cambio de apartamento al editar (API y pantalla)
   RN-21..RN-23  Apartamento vendido: aviso al pedir otro estado
   RN-24..RN-26  Pagos: bloqueo de la fila de la venta al validar el saldo
+  RN-27..RN-29  Apartamento vendido: proyecto y precio fijos
 """
 
 import html
@@ -23,7 +24,11 @@ from sqlalchemy.exc import IntegrityError
 
 from models import db
 from models.proyecto import Proyecto
-from routes.apartamentos import AVISO_ESTADO_VENDIDO
+from routes.apartamentos import (
+    AVISO_ESTADO_VENDIDO,
+    ERROR_PRECIO_VENDIDO,
+    ERROR_PROYECTO_VENDIDO,
+)
 
 from tests.conftest import entrar_como
 
@@ -184,6 +189,69 @@ class TestEstadoDeApartamentoVendido:
                          json=cuerpo_apartamento(datos, "102", estado="reservado")).get_json()
         assert cuerpo["estado"] == "reservado"
         assert "aviso" not in cuerpo
+
+    def _otro_proyecto(self, api, datos):
+        respuesta = api.post("/api/proyectos", json={
+            "id_cliente": datos["id_cliente"], "id_usuario": datos["id_usuario"],
+            "nombre_proyecto": "Torre Dos", "direccion": "Calle 9 # 8-7", "ciudad": "Cali"})
+        assert respuesta.status_code == 201, respuesta.get_json()
+        return respuesta.get_json()["id_proyecto"]
+
+    def test_rn27_vendido_no_cambia_de_proyecto_ni_de_precio_por_la_api(self, api, datos, venta):
+        ruta = f"/api/apartamentos/{datos['id_apartamento']}"
+        otro = self._otro_proyecto(api, datos)
+
+        respuesta = api.put(ruta, json=cuerpo_apartamento(datos, id_proyecto=otro, precio=VALOR + 1))
+        assert respuesta.status_code == 400
+        errores = respuesta.get_json()["errores"]
+        assert ERROR_PROYECTO_VENDIDO in errores
+        assert ERROR_PRECIO_VENDIDO in errores
+
+        # Nada cambio en la base.
+        actual = api.get(ruta).get_json()
+        assert actual["id_proyecto"] == datos["id_proyecto"]
+        assert actual["precio"] == VALOR
+
+    def test_rn28_vendido_no_cambia_de_proyecto_ni_de_precio_por_la_pantalla(self, api, datos, venta):
+        ruta = f"/apartamentos/{datos['id_apartamento']}/actualizar"
+        otro = self._otro_proyecto(api, datos)
+
+        pagina = html.unescape(api.post(
+            ruta, data=cuerpo_apartamento(datos, id_proyecto=otro)).get_data(as_text=True))
+        assert ERROR_PROYECTO_VENDIDO in pagina
+        pagina = html.unescape(api.post(
+            ruta, data=cuerpo_apartamento(datos, precio=VALOR - 1)).get_data(as_text=True))
+        assert ERROR_PRECIO_VENDIDO in pagina
+
+        actual = api.get(f"/api/apartamentos/{datos['id_apartamento']}").get_json()
+        assert actual["id_proyecto"] == datos["id_proyecto"]
+        assert actual["precio"] == VALOR
+
+    def test_rn29_vendido_si_permite_corregir_area_habitaciones_y_banos(self, api, datos, venta):
+        ruta = f"/api/apartamentos/{datos['id_apartamento']}"
+        # El precio se envia con decimales, como lo muestra el formulario:
+        # es el mismo valor, no un cambio.
+        respuesta = api.put(ruta, json=cuerpo_apartamento(
+            datos, area_m2=72.5, habitaciones=4, banos=3, precio=f"{VALOR}.00", estado="vendido"))
+        assert respuesta.status_code == 200, respuesta.get_json()
+        cuerpo = respuesta.get_json()
+        assert (cuerpo["area_m2"], cuerpo["habitaciones"], cuerpo["banos"]) == (72.5, 4, 3)
+        assert cuerpo["estado"] == "vendido"
+
+        # Por la pantalla, con los mismos datos que precarga el formulario.
+        formulario = cuerpo_apartamento(datos, area_m2="80.00", precio=f"{VALOR}.00")
+        del formulario["estado"]
+        assert api.post(f"/apartamentos/{datos['id_apartamento']}/actualizar",
+                        data=formulario).status_code == 302
+        assert api.get(ruta).get_json()["area_m2"] == 80
+
+    def test_rn29b_sin_venta_el_proyecto_y_el_precio_si_se_pueden_cambiar(self, api, datos):
+        otro = self._otro_proyecto(api, datos)
+        respuesta = api.put(f"/api/apartamentos/{datos['id_apartamento']}",
+                            json=cuerpo_apartamento(datos, id_proyecto=otro, precio=VALOR + 1))
+        assert respuesta.status_code == 200, respuesta.get_json()
+        assert respuesta.get_json()["id_proyecto"] == otro
+        assert respuesta.get_json()["precio"] == VALOR + 1
 
 
 # ---------------------------------------------------------------------
