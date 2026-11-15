@@ -10,6 +10,7 @@ cambio futuro rompe una regla, alguna de estas pruebas falla.
   RN-05..RN-09  Pagos: abonos y estado calculado de la venta
   RN-10..RN-14  Eliminaciones bloqueadas (409)
   RN-15..RN-17  Contrato de la API (404, 400, contrasena oculta)
+  RN-18..RN-20  Ventas: cambio de apartamento al editar (API y pantalla)
 """
 
 import pytest
@@ -49,6 +50,30 @@ def estado_apartamento(api, datos):
     return api.get(f"/api/apartamentos/{datos['id_apartamento']}").get_json()["estado"]
 
 
+def cuerpo_apartamento(datos, numero="101", **cambios):
+    cuerpo = {"id_proyecto": datos["id_proyecto"], "numero_apartamento": numero,
+              "area_m2": 60, "habitaciones": 3, "banos": 2, "precio": VALOR,
+              "estado": "disponible"}
+    cuerpo.update(cambios)
+    return cuerpo
+
+
+def crear_otro_apartamento(api, datos, estado="reservado"):
+    """Segundo apartamento del mismo proyecto; devuelve su ID."""
+    respuesta = api.post("/api/apartamentos", json=cuerpo_apartamento(datos, "102", estado=estado))
+    assert respuesta.status_code == 201, respuesta.get_json()
+    return respuesta.get_json()["id_apartamento"]
+
+
+def estado_de(api, id_apartamento):
+    return api.get(f"/api/apartamentos/{id_apartamento}").get_json()["estado"]
+
+
+def cuerpo_venta(datos, id_apartamento):
+    return {"id_cliente": datos["id_cliente"], "id_apartamento": id_apartamento,
+            "fecha_venta": datos["fecha_venta"], "valor_venta": VALOR}
+
+
 @pytest.fixture
 def venta(api, datos):
     """Una venta ya registrada; devuelve su ID."""
@@ -78,6 +103,36 @@ class TestVentas:
         respuesta = crear_venta(api, datos, fecha_venta=datos["manana"])
         assert respuesta.status_code == 400
         assert estado_apartamento(api, datos) == "disponible"
+
+    def test_rn18_cambiar_el_apartamento_de_una_venta_por_la_api(self, api, datos, venta):
+        """El anterior vuelve a disponible y el nuevo (que estaba
+        reservado) pasa a vendido."""
+        nuevo = crear_otro_apartamento(api, datos, estado="reservado")
+        respuesta = api.put(f"/api/ventas/{venta}", json=cuerpo_venta(datos, nuevo))
+        assert respuesta.status_code == 200, respuesta.get_json()
+        assert respuesta.get_json()["id_apartamento"] == nuevo
+        assert estado_apartamento(api, datos) == "disponible"
+        assert estado_de(api, nuevo) == "vendido"
+        # El anterior quedo libre de verdad: ya no tiene venta asociada.
+        anterior = api.get(f"/api/apartamentos/{datos['id_apartamento']}").get_json()
+        assert anterior["id_venta"] is None
+
+    def test_rn19_cambiar_el_apartamento_de_una_venta_por_la_pantalla(self, api, datos, venta):
+        nuevo = crear_otro_apartamento(api, datos, estado="disponible")
+        respuesta = api.post(f"/ventas/{venta}/actualizar", data=cuerpo_venta(datos, nuevo))
+        assert respuesta.status_code == 302  # guardo y redirige al listado
+        assert estado_apartamento(api, datos) == "disponible"
+        assert estado_de(api, nuevo) == "vendido"
+
+    def test_rn20_no_se_cambia_la_venta_a_un_apartamento_ya_vendido(self, api, datos, venta):
+        """Si el apartamento destino ya esta vendido, se rechaza y
+        ningun estado cambia."""
+        otro = crear_otro_apartamento(api, datos, estado="disponible")
+        assert crear_venta(api, datos, id_apartamento=otro).status_code == 201
+        respuesta = api.put(f"/api/ventas/{venta}", json=cuerpo_venta(datos, otro))
+        assert respuesta.status_code == 400
+        assert estado_apartamento(api, datos) == "vendido"
+        assert estado_de(api, otro) == "vendido"
 
 
 # ---------------------------------------------------------------------
