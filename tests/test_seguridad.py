@@ -10,8 +10,10 @@ Pruebas de la seguridad de formularios y del manejo de errores
   SG-09..SG-10  Longitudes maximas (validadas en Python, no en la base)
   SG-11..SG-13  Paginas de error 404 y 500, en HTML y en JSON
   SG-14..SG-15  Cabeceras de seguridad y configuracion
+  SG-16..SG-18  La API solo acepta cuerpos JSON y no habilita CORS
 """
 
+import json
 import re
 
 import pytest
@@ -271,3 +273,62 @@ def test_sg15_secret_key_obligatoria_y_cookie_protegida(app):
     assert app.config["SESSION_COOKIE_HTTPONLY"] is True
     assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
     assert create_app(ConfigPruebasConCsrf).config["WTF_CSRF_ENABLED"] is True
+
+
+# ---------------------------------------------------------------------
+# La API solo acepta JSON y no habilita CORS
+# ---------------------------------------------------------------------
+# Por que importa: la API esta exenta del token CSRF (SG-05). Esa
+# exencion es segura solo si un formulario HTML de otro sitio no puede
+# hacerle peticiones validas. Un formulario unicamente sabe enviar tres
+# tipos de cuerpo (los de abajo), nunca application/json; y sin CORS, el
+# JavaScript de otro sitio tampoco puede enviar JSON con la cookie.
+TIPOS_DE_FORMULARIO = ["text/plain", "application/x-www-form-urlencoded",
+                       "multipart/form-data", None]
+
+
+@pytest.mark.parametrize("tipo", TIPOS_DE_FORMULARIO)
+def test_sg16_la_api_rechaza_cuerpos_que_no_declaran_json(api, datos, tipo):
+    """Aunque el texto del cuerpo sea JSON valido, sin la cabecera
+    Content-Type: application/json se responde 400 y no se guarda nada."""
+    entrar_como(api, ADMIN)
+    cuerpo = json.dumps(CLIENTE)
+
+    respuesta = api.post("/api/clientes", data=cuerpo, content_type=tipo)
+    assert respuesta.status_code == 400
+    assert "application/json" in respuesta.get_json()["errores"][0]
+    assert all(c["documento"] != CLIENTE["documento"] for c in api.get("/api/clientes").get_json())
+
+    # Tambien al actualizar: el registro queda como estaba.
+    ruta = f"/api/clientes/{datos['id_cliente']}"
+    assert api.put(ruta, data=cuerpo, content_type=tipo).status_code == 400
+    assert api.get(ruta).get_json()["nombre"] == "Ana"
+
+    # Con la cabecera correcta, el mismo cuerpo si se acepta.
+    assert api.post("/api/clientes", data=cuerpo,
+                    content_type="application/json").status_code == 201
+
+
+@pytest.mark.parametrize("tipo", TIPOS_DE_FORMULARIO)
+def test_sg17_el_login_de_la_api_tambien_exige_json(api, datos, tipo):
+    api.post("/logout")
+    credenciales = json.dumps({"correo": CORREOS[ADMIN], "contrasena": CLAVE})
+    assert api.post("/api/login", data=credenciales, content_type=tipo).status_code == 400
+    assert api.get("/api/clientes").status_code == 401  # no se abrio sesion
+
+
+def test_sg18_la_api_no_habilita_cors(api, datos):
+    """Ninguna respuesta autoriza a otro origen: sin cabeceras
+    Access-Control-*, el navegador impide que el JavaScript de otro
+    sitio lea la API o le envie JSON."""
+    entrar_como(api, ADMIN)
+    origen = {"Origin": "https://otro-sitio.example"}
+    consulta = api.get("/api/clientes", headers=origen)
+    previa = api.options("/api/clientes", headers={
+        **origen,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type",
+    })
+    for respuesta in (consulta, previa):
+        cabeceras = [nombre.lower() for nombre, _ in respuesta.headers]
+        assert not [c for c in cabeceras if c.startswith("access-control-")]
