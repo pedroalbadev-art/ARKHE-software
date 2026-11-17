@@ -171,7 +171,21 @@ Dos convenciones del proyecto:
 | No se elimina un usuario que gestiona proyectos. | `eliminar_usuario` y `api_eliminar_usuario` |
 | El mensaje cuando la base rechaza un dato único repetido (clientes y usuarios). | Las rutas de crear y actualizar de cada uno |
 
-Las rutas de la pantalla están en `routes/<módulo>.py` y las de la API en `routes/api.py`. Quien cambie una regla de la segunda tabla debe cambiarla en los dos lugares. Las pruebas cubren todas estas reglas por la API (`tests/test_reglas.py`). Por la pantalla cubren tres: el cambio de apartamento de una venta, y la eliminación de un cliente y de un usuario con dependencias. Las demás copias de la pantalla (registrar y eliminar una venta, eliminar un proyecto o un apartamento) no tienen prueba propia, así que un cambio en ellas debe revisarse a mano.
+Las rutas de la pantalla están en `routes/<módulo>.py` y las de la API en `routes/api.py`. Quien cambie una regla de la segunda tabla debe cambiarla en los dos lugares. Qué copias tienen prueba (los códigos son los de las funciones de prueba; por ejemplo, RN-19 es `test_rn19_…`):
+
+| Regla | Por la API | Por la pantalla |
+|---|---|---|
+| Al registrar una venta, el apartamento pasa a `vendido`. | RN-01 | Sin prueba |
+| Cambio de apartamento de una venta. | RN-18, RN-20 | RN-19 |
+| Eliminar una venta. | RN-02, RN-12 | Sin prueba |
+| Eliminar un proyecto con apartamentos. | RN-10 | Sin prueba |
+| Eliminar un apartamento con venta. | RN-11 | Sin prueba |
+| Eliminar un cliente con proyectos o ventas. | RN-13 | SG-07 |
+| Eliminar un usuario que gestiona proyectos. | RN-14 | SG-08 |
+| Dato único repetido en clientes. | RQ-04 (crear), RQ-05 (editar) | IN-10 (crear), RQ-13 (editar) |
+| Correo repetido en usuarios. | Sin prueba | RQ-03 (editar); crear, sin prueba |
+
+Las pruebas RN están en `tests/test_reglas.py`, las RQ en `tests/test_requisitos.py`, las SG en `tests/test_seguridad.py` e IN-10 en `tests/test_interfaz.py`. Un cambio en una copia marcada "Sin prueba" debe revisarse a mano.
 
 ### 2.5 Flujo de una petición
 
@@ -408,7 +422,7 @@ venv\Scripts\activate
 pytest
 ```
 
-Son **272 pruebas** y todas pasan (ejecución del 2026-11-14).
+Son **300 pruebas** y todas pasan (ejecución del 2026-11-16).
 
 **No tocan la base real.** `tests/conftest.py` crea para cada prueba una aplicación con una base SQLite en memoria, que nace vacía y desaparece al terminar. Tres detalles de esa preparación:
 
@@ -427,6 +441,7 @@ Son **272 pruebas** y todas pasan (ejecución del 2026-11-14).
 | `tests/test_seguridad.py` | 29 | Token CSRF, mensajes de error, páginas de error, exigencia de JSON en la API y ausencia de CORS. |
 | `tests/test_interfaz.py` | 33 | Confirmaciones, mensajes, estados vacíos, accesibilidad, CSP. |
 | `tests/test_instalacion.py` | 26 | Esquema SQL, datos de demostración e instalador. |
+| `tests/test_requisitos.py` | 28 | Brechas detectadas al escribir el documento de [requisitos](requisitos_y_casos_de_uso.md): edición de usuarios y de clientes, cliente repetido en la API, validaciones de proyectos, filtros de la API y el script `cambiar_contrasena.py`. |
 
 ### 5.2 Postman
 

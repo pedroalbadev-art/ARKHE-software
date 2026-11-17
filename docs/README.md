@@ -6,6 +6,8 @@ Documentación de apoyo. La documentación principal del sistema es el `README.m
 |---|---|
 | `manual_tecnico.md` | Manual técnico: arquitectura, seguridad, API, pruebas, instalación y limitaciones conocidas. |
 | `manual_usuario.md` | Manual de usuario: acceso, interfaz, roles, uso de cada módulo, ejemplo completo, mensajes y preguntas frecuentes. Sus imágenes van en `capturas/`. |
+| `requisitos_y_casos_de_uso.md` | Requisitos funcionales y no funcionales, actores, casos de uso y matriz de trazabilidad: cada requisito con el caso de uso que lo realiza y la prueba (pytest o Postman) que lo verifica. |
+| `diagrama_casos_uso.puml` | Código fuente del diagrama de casos de uso, en PlantUML. Al generarlo produce `diagrama_casos_uso.png`, la imagen que muestra el documento de requisitos. |
 | `api.md` | Referencia de la API REST: campos obligatorios y opcionales de cada recurso, ejemplos de cuerpo y de respuesta, y estructura de los errores. |
 | `diccionario_de_datos.md` | Las seis tablas campo por campo (tipo, nulo, clave, valor por defecto y descripción), con las reglas de negocio que afectan a cada una. |
 | `diagrama_er.png` | Diagrama entidad-relación de la base de datos, como imagen. |

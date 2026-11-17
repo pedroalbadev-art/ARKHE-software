@@ -1,0 +1,148 @@
+@startuml diagrama_casos_uso
+' ----------------------------------------------------------------------
+' Diagrama de casos de uso del sistema.
+'
+' Verificado el 2026-11-16 contra la matriz PERMISOS de
+' utils/seguridad.py y las rutas de routes/. Acompana a
+' docs/requisitos_y_casos_de_uso.md (ARKHE-RQ-001), donde cada caso de
+' uso (CU-xx) esta descrito y enlazado con sus requisitos y pruebas.
+'
+' Como verlo: extension "PlantUML" de VS Code (Alt+D) o
+'   java -jar plantuml.jar docs/diagrama_casos_uso.puml
+'
+' Como leerlo:
+'   - Una linea une a un actor con un caso de uso que puede ejecutar.
+'   - La flecha de punta hueca (Administrador -> Vendedor) es una
+'     generalizacion: el Administrador puede hacer todo lo que hace el
+'     Vendedor, y ademas lo que tiene unido directamente.
+'   - Vendedor y Administrador quedan a la izquierda; el Gerente, a la
+'     derecha.
+' ----------------------------------------------------------------------
+
+left to right direction
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam nodesep 12
+skinparam ranksep 70
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+
+skinparam actor {
+  BackgroundColor #C9A876
+  BorderColor #3A2F20
+  FontColor #3A2F20
+  FontStyle bold
+  FontSize 12
+}
+skinparam usecase {
+  BackgroundColor #F3ECDD
+  BorderColor #8A6F52
+  BorderThickness 1.5
+  FontColor #3A2F20
+  FontSize 11
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #6E5A3C
+  BorderThickness 1.5
+  FontColor #4A3B26
+  FontStyle bold
+  FontSize 13
+}
+skinparam arrow {
+  Color #6E5A3C
+  Thickness 1.2
+  FontColor #3A2F20
+  FontSize 10
+}
+skinparam note {
+  BackgroundColor #E4D6BA
+  BorderColor #8A6F52
+  FontColor #3A2F20
+  FontSize 10
+}
+skinparam title {
+  FontColor #3A2F20
+  FontSize 15
+}
+skinparam legend {
+  BackgroundColor #F3ECDD
+  BorderColor #8A6F52
+  FontColor #3A2F20
+  FontSize 10
+}
+
+title Sistema de gestión inmobiliaria — Casos de uso
+
+' ---- Actores de la izquierda -----------------------------------------
+actor "Usuario no\nautenticado" as Anonimo
+actor "Vendedor" as Vendedor
+actor "Administrador" as Admin
+
+' ---- Casos de uso (en el orden en que se dibujan, de arriba abajo) ----
+rectangle "Sistema" {
+  usecase "CU-01 Iniciar sesión" as CU01
+  usecase "CU-02 Cerrar sesión" as CU02
+  usecase "CU-03 Consultar dashboard" as CU03
+  usecase "CU-04 Consultar y buscar registros" as CU04
+  usecase "CU-05 Registrar cliente" as CU05
+  usecase "CU-06 Registrar venta" as CU06
+  usecase "CU-07 Registrar pago" as CU07
+  usecase "CU-08 Editar cliente, venta o pago" as CU08
+  usecase "CU-09 Gestionar proyectos" as CU09
+  usecase "CU-10 Gestionar apartamentos" as CU10
+  usecase "CU-11 Consultar usuarios" as CU11
+  usecase "CU-12 Activar o desactivar usuario" as CU12
+  usecase "CU-13 Gestionar usuarios" as CU13
+  usecase "CU-14 Eliminar registros" as CU14
+}
+
+' ---- Actor de la derecha ---------------------------------------------
+actor "Gerente" as Gerente
+
+' ---- Usuario no autenticado: solo puede iniciar sesion ----------------
+Anonimo -- CU01
+
+' ---- Vendedor (y, por la generalizacion, tambien el Administrador) ----
+Vendedor -- CU02
+Vendedor -- CU03
+Vendedor -- CU04
+Vendedor -- CU05
+Vendedor -- CU06
+Vendedor -- CU07
+Vendedor -- CU08
+
+' ---- Administrador: todo lo del Vendedor, mas lo siguiente ------------
+Vendedor <|- Admin
+Admin -- CU09
+Admin -- CU10
+Admin -- CU11
+Admin -- CU12
+Admin -- CU13
+Admin -- CU14
+
+' ---- Gerente: consulta todo y activa o desactiva Vendedores -----------
+CU02 -- Gerente
+CU03 -- Gerente
+CU04 -- Gerente
+CU11 -- Gerente
+CU12 -- Gerente
+
+note right of Gerente
+  En CU-12 el Gerente solo
+  cambia el estado de cuentas
+  de Vendedor. El Administrador,
+  el de cualquier cuenta menos
+  la propia.
+end note
+
+legend bottom
+  CU-04 cubre clientes, proyectos, apartamentos, ventas y pagos.
+  CU-09, CU-10 y CU-13 incluyen registrar y editar.
+  CU-14 (eliminar, en cualquier módulo) es exclusivo del Administrador.
+  La API REST (/api) ofrece los mismos casos de uso con los mismos permisos.
+endlegend
+
+@enduml
