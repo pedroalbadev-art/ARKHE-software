@@ -408,7 +408,7 @@ venv\Scripts\activate
 pytest
 ```
 
-Son **272 pruebas** y todas pasan (ejecución del 2026-11-14).
+Son **300 pruebas** y todas pasan (ejecución del 2026-11-16).
 
 **No tocan la base real.** `tests/conftest.py` crea para cada prueba una aplicación con una base SQLite en memoria, que nace vacía y desaparece al terminar. Tres detalles de esa preparación:
 
@@ -427,6 +427,7 @@ Son **272 pruebas** y todas pasan (ejecución del 2026-11-14).
 | `tests/test_seguridad.py` | 29 | Token CSRF, mensajes de error, páginas de error, exigencia de JSON en la API y ausencia de CORS. |
 | `tests/test_interfaz.py` | 33 | Confirmaciones, mensajes, estados vacíos, accesibilidad, CSP. |
 | `tests/test_instalacion.py` | 26 | Esquema SQL, datos de demostración e instalador. |
+| `tests/test_requisitos.py` | 28 | Brechas detectadas al escribir el documento de [requisitos](requisitos_y_casos_de_uso.md): edición de usuarios y de clientes, cliente repetido en la API, validaciones de proyectos, filtros de la API y el script `cambiar_contrasena.py`. |
 
 ### 5.2 Postman
 

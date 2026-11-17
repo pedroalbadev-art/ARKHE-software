@@ -206,7 +206,7 @@ venv\Scripts\activate
 pytest
 ```
 
-Son 272 pruebas. No tocan la base de datos real: cada una usa una base temporal en memoria (SQLite) que se crea y se destruye sola.
+Son 300 pruebas. No tocan la base de datos real: cada una usa una base temporal en memoria (SQLite) que se crea y se destruye sola.
 
 | Archivo | Qué comprueba |
 |---|---|
@@ -217,6 +217,7 @@ Son 272 pruebas. No tocan la base de datos real: cada una usa una base temporal 
 | `tests/test_seguridad.py` | Token CSRF, mensajes de error, páginas de error, exigencia de JSON en la API y ausencia de CORS. |
 | `tests/test_interfaz.py` | Confirmaciones, mensajes, estados vacíos, accesibilidad, CSP. |
 | `tests/test_instalacion.py` | Esquema SQL, datos de demostración e instalador. |
+| `tests/test_requisitos.py` | Edición de usuarios y de clientes, validaciones de proyectos, filtros de la API y el script de cambio de contraseña. |
 
 ### Postman
 
