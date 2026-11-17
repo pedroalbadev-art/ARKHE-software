@@ -5,6 +5,7 @@ Documentación de apoyo. La documentación principal del sistema es el `README.m
 | Archivo o carpeta | Qué contiene |
 |---|---|
 | `manual_tecnico.md` | Manual técnico: arquitectura, seguridad, API, pruebas, instalación y limitaciones conocidas. |
+| `manual_usuario.md` | Manual de usuario: acceso, interfaz, roles, uso de cada módulo, ejemplo completo, mensajes y preguntas frecuentes. Sus imágenes van en `capturas/`. |
 | `api.md` | Referencia de la API REST: campos obligatorios y opcionales de cada recurso, ejemplos de cuerpo y de respuesta, y estructura de los errores. |
 | `diccionario_de_datos.md` | Las seis tablas campo por campo (tipo, nulo, clave, valor por defecto y descripción), con las reglas de negocio que afectan a cada una. |
 | `diagrama_er.png` | Diagrama entidad-relación de la base de datos, como imagen. |
