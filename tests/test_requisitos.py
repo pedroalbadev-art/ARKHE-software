@@ -12,6 +12,8 @@ estaban implementados pero no tenian una prueba automatica propia.
   RQ-06..RQ-09  RF-27  Proyecto: nombre repetido, gestor inactivo,
                        cliente o gestor inexistente y longitudes maximas
   RQ-10..RQ-11  RF-25  scripts/cambiar_contrasena.py
+  RQ-12..RQ-13  RF-16  Editar un cliente desde la pantalla
+  RQ-14..RQ-15  RF-51  Filtros de los listados de la API
 
 Como las demas, usan la base temporal de tests/conftest.py: nunca tocan
 ARKHE_V1.
@@ -314,3 +316,155 @@ def test_rq11_el_script_no_cambia_nada_si_algo_falla(app, api, datos, ejecutar_s
     assert aviso in salida and "No se cambio nada." in salida
     assert usuario_guardado(app, datos["id_vendedor"]) == antes
     assert puede_entrar(api, CORREOS[VENDEDOR], CLAVE)
+
+
+# ---------------------------------------------------------------------
+# RF-16  Editar un cliente desde la pantalla
+# ---------------------------------------------------------------------
+CLIENTE_EDITADO = {"nombre": "Ana María", "apellido": "Rojas Peña", "documento": "10203041",
+                   "correo": "ana.maria@ejemplo.com", "telefono": "3017654321"}
+
+
+def cliente_guardado(app, id_cliente):
+    with app.app_context():
+        cliente = db.session.get(Cliente, id_cliente)
+        return {campo: getattr(cliente, campo)
+                for campo in ("nombre", "apellido", "documento", "correo", "telefono")}
+
+
+def test_rq12_editar_cliente_por_la_pantalla(app, api, datos):
+    entrar_como(api, VENDEDOR)          # el Vendedor tambien edita clientes
+    id_cliente = datos["id_cliente"]
+
+    # El formulario llega con los datos actuales.
+    formulario = api.get(f"/clientes/{id_cliente}/editar")
+    assert formulario.status_code == 200
+    pagina = formulario.get_data(as_text=True)
+    assert 'value="Ana"' in pagina and 'value="10203040"' in pagina
+
+    respuesta = api.post(f"/clientes/{id_cliente}/editar", data=CLIENTE_EDITADO)
+    assert respuesta.status_code == 302
+    assert respuesta.headers["Location"] == "/clientes/"
+    assert cliente_guardado(app, id_cliente) == CLIENTE_EDITADO
+
+    lista = api.get("/clientes/").get_data(as_text=True)
+    assert "actualizado." in lista and "Ana María Rojas Peña" in lista
+    with app.app_context():
+        assert Cliente.query.count() == 1          # se edito, no se creo otro
+
+
+def test_rq13_editar_cliente_por_la_pantalla_con_datos_incorrectos(app, api, datos):
+    entrar_como(api, ADMIN)
+    id_cliente = datos["id_cliente"]
+    antes = cliente_guardado(app, id_cliente)
+
+    # Datos que no pasan la validacion: mensaje y nada guardado.
+    invalido = api.post(f"/clientes/{id_cliente}/editar", follow_redirects=True,
+                        data={**CLIENTE_EDITADO, "documento": "abc", "telefono": "12"})
+    pagina = invalido.get_data(as_text=True)
+    assert "El documento debe contener solo números (6 a 15 dígitos)." in pagina
+    assert "El teléfono debe contener solo números (7 a 15 dígitos)." in pagina
+    assert cliente_guardado(app, id_cliente) == antes
+
+    # Documento de otro cliente: mensaje y nada guardado.
+    assert api.post("/api/clientes", json=OTRO_CLIENTE).status_code == 201
+    repetido = api.post(f"/clientes/{id_cliente}/editar", follow_redirects=True,
+                        data={**CLIENTE_EDITADO, "documento": OTRO_CLIENTE["documento"]})
+    assert MENSAJE_CLIENTE_REPETIDO in repetido.get_data(as_text=True)
+    assert cliente_guardado(app, id_cliente) == antes
+
+    # Un cliente que no existe: pagina 404, al abrir y al guardar.
+    assert api.get("/clientes/999999/editar").status_code == 404
+    assert api.post("/clientes/999999/editar", data=CLIENTE_EDITADO).status_code == 404
+
+
+# ---------------------------------------------------------------------
+# RF-51  Filtros de los listados de la API
+# ---------------------------------------------------------------------
+@pytest.fixture
+def varios(api, datos):
+    """Sobre la fixture `datos` (proyecto "Torre Prueba" con el
+    apartamento 101, disponible) agrega un segundo proyecto y mas
+    apartamentos, y deja tres ventas, una en cada estado calculado.
+    Devuelve los ID que usan las pruebas de filtros."""
+    entrar_como(api, ADMIN)
+
+    def crear(ruta, cuerpo):
+        respuesta = api.post(ruta, json=cuerpo)
+        assert respuesta.status_code == 201, respuesta.get_json()
+        return respuesta.get_json()
+
+    def apartamento(id_proyecto, numero, estado):
+        return crear("/api/apartamentos", {
+            "id_proyecto": id_proyecto, "numero_apartamento": numero, "area_m2": 60,
+            "habitaciones": 3, "banos": 2, "precio": 1000, "estado": estado})["id_apartamento"]
+
+    def venta(id_apartamento):
+        return crear("/api/ventas", {
+            "id_cliente": datos["id_cliente"], "id_apartamento": id_apartamento,
+            "fecha_venta": datos["fecha_venta"], "valor_venta": 1000})["id_venta"]
+
+    def pago(id_venta, monto):
+        return crear("/api/pagos", {"id_venta": id_venta, "fecha_pago": datos["fecha_pago"],
+                                    "monto": monto, "metodo_pago": "Efectivo"})["id_pago"]
+
+    otro_proyecto = crear("/api/proyectos", cuerpo_proyecto(datos))["id_proyecto"]
+    ids = {
+        "proyecto_a": datos["id_proyecto"], "proyecto_b": otro_proyecto,
+        "disponible_a": datos["id_apartamento"],
+        "reservado_a": apartamento(datos["id_proyecto"], "102", "reservado"),
+        "reservado_b": apartamento(otro_proyecto, "201", "reservado"),
+        "pendiente_b": apartamento(otro_proyecto, "202", "disponible"),
+        "en_pago_b": apartamento(otro_proyecto, "203", "disponible"),
+        "pagada_b": apartamento(otro_proyecto, "204", "disponible"),
+    }
+    ids["venta_pendiente"] = venta(ids["pendiente_b"])
+    ids["venta_en_pago"] = venta(ids["en_pago_b"])
+    ids["venta_pagada"] = venta(ids["pagada_b"])
+    ids["pagos_en_pago"] = [pago(ids["venta_en_pago"], 300), pago(ids["venta_en_pago"], 200)]
+    ids["pagos_pagada"] = [pago(ids["venta_pagada"], 1000)]
+    return ids
+
+
+def ids_de(api, ruta, clave):
+    respuesta = api.get(ruta)
+    assert respuesta.status_code == 200, ruta
+    return sorted(registro[clave] for registro in respuesta.get_json())
+
+
+def test_rq14_la_api_filtra_los_apartamentos_por_estado_y_por_proyecto(api, varios):
+    entrar_como(api, "Gerente")         # consultar: cualquier rol
+    apto = "id_apartamento"
+    assert len(ids_de(api, "/api/apartamentos", apto)) == 6            # sin filtro: todos
+
+    assert ids_de(api, "/api/apartamentos?estado=disponible", apto) == [varios["disponible_a"]]
+    assert ids_de(api, "/api/apartamentos?estado=reservado", apto) == \
+        sorted([varios["reservado_a"], varios["reservado_b"]])
+    assert ids_de(api, "/api/apartamentos?estado=vendido", apto) == \
+        sorted([varios["pendiente_b"], varios["en_pago_b"], varios["pagada_b"]])
+
+    assert ids_de(api, f"/api/apartamentos?proyecto={varios['proyecto_a']}", apto) == \
+        sorted([varios["disponible_a"], varios["reservado_a"]])
+    assert len(ids_de(api, f"/api/apartamentos?proyecto={varios['proyecto_b']}", apto)) == 4
+
+    # Los dos filtros se combinan.
+    assert ids_de(api, f"/api/apartamentos?proyecto={varios['proyecto_b']}&estado=reservado", apto) == \
+        [varios["reservado_b"]]
+    # Un valor que nada cumple devuelve una lista vacia, no un error.
+    assert ids_de(api, "/api/apartamentos?estado=inexistente", apto) == []
+    assert ids_de(api, "/api/apartamentos?proyecto=999999", apto) == []
+
+
+def test_rq15_la_api_filtra_las_ventas_por_estado_y_los_pagos_por_venta(api, varios):
+    entrar_como(api, VENDEDOR)
+    assert len(ids_de(api, "/api/ventas", "id_venta")) == 3
+    # El estado no es una columna: el filtro usa el estado calculado con los pagos.
+    assert ids_de(api, "/api/ventas?estado=pendiente", "id_venta") == [varios["venta_pendiente"]]
+    assert ids_de(api, "/api/ventas?estado=en-pago", "id_venta") == [varios["venta_en_pago"]]
+    assert ids_de(api, "/api/ventas?estado=pagada", "id_venta") == [varios["venta_pagada"]]
+    assert ids_de(api, "/api/ventas?estado=inexistente", "id_venta") == []
+
+    assert len(ids_de(api, "/api/pagos", "id_pago")) == 3
+    assert ids_de(api, f"/api/pagos?venta={varios['venta_en_pago']}", "id_pago") == sorted(varios["pagos_en_pago"])
+    assert ids_de(api, f"/api/pagos?venta={varios['venta_pagada']}", "id_pago") == varios["pagos_pagada"]
+    assert ids_de(api, f"/api/pagos?venta={varios['venta_pendiente']}", "id_pago") == []
